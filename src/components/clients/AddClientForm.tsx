@@ -5,16 +5,27 @@ import { useRouter } from "next/navigation";
 import { clientService } from "@/lib/services/clientService";
 import { subscriptionService, Plan } from "@/lib/services/subscriptionService";
 import { useGlobalNotifications } from "@/components/providers/GlobalNotificationProvider";
-import { Camera, Upload, Check, User, Phone, FileText, CreditCard, ChevronDown, ArrowLeft, X } from "lucide-react";
+import { Camera, Upload, Check, User, Phone, FileText, CreditCard, ChevronDown, ArrowLeft, X, RefreshCw } from "lucide-react";
 import { CameraPreview } from "@/components/ui/CameraPreview";
+import { useAuth } from "@/components/auth/AuthProvider";
 import Link from "next/link";
 
 export const AddClientForm = () => {
+    const { user } = useAuth();
     const router = useRouter();
     const { addNotification } = useGlobalNotifications();
     const [isLoading, setIsLoading] = useState(false);
     const [plans, setPlans] = useState<Plan[]>([]);
     const [showCamera, setShowCamera] = useState(false);
+    const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+    const [countries] = useState([
+        { code: 'HN', dial: '+504', flag: '🇭🇳', name: 'Honduras' },
+        { code: 'SV', dial: '+503', flag: '🇸🇻', name: 'El Salvador' },
+        { code: 'GT', dial: '+502', flag: '🇬🇹', name: 'Guatemala' },
+        { code: 'NI', dial: '+505', flag: '🇳🇮', name: 'Nicaragua' },
+        { code: 'CR', dial: '+506', flag: '🇨🇷', name: 'Costa Rica' },
+    ]);
+    const [selectedCountry, setSelectedCountry] = useState(countries[0]);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -25,7 +36,12 @@ export const AddClientForm = () => {
         photoUrl: "",
         rtn: "",
         dpi: "",
-        planId: ""
+        planId: "",
+        paymentMethod: "CASH" as 'CASH' | 'TRANSFER' | 'POS' | 'COMPLIMENTARY',
+        paymentReference: "",
+        paymentImage: "",
+        complimentaryDuration: 30,
+        customDurationValue: ""
     });
 
     useEffect(() => {
@@ -78,8 +94,18 @@ export const AddClientForm = () => {
 
             // Assign subscription if plan selected
             if (formData.planId) {
-                await subscriptionService.assignSubscription(newClient.id, formData.planId);
-                addNotification("success", "Client created and plan assigned!");
+                const selectedPlan = formData.planId === 'complimentary' ? null : plans.find(p => p.id === formData.planId);
+                const amount = formData.planId === 'complimentary' ? 0 : selectedPlan?.price || 0;
+
+                await subscriptionService.assignSubscription(newClient.id, formData.planId, {
+                    method: formData.paymentMethod,
+                    amount: amount,
+                    reference: formData.paymentReference,
+                    image: formData.paymentImage,
+                    durationDays: formData.paymentMethod === 'COMPLIMENTARY' ? formData.complimentaryDuration : undefined,
+                    adminName: user?.name || "Admin"
+                });
+                addNotification("success", "Client created and subscription activated!");
             } else {
                 addNotification("success", "Client created successfully!");
             }
@@ -121,15 +147,39 @@ export const AddClientForm = () => {
 
                 {/* Phone Number */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-2">Country</label>
-                        <div className="bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 text-white flex justify-between items-center cursor-default">
+                    <div className="relative">
+                        <label className="block text-sm font-medium text-gray-400 mb-2">Country Code</label>
+                        <button
+                            type="button"
+                            onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                            className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 text-white flex justify-between items-center hover:border-blue-500 transition"
+                        >
                             <span className="flex items-center gap-2">
-                                <span className="text-xl">🇭🇳</span>
-                                <span>HN +504</span>
+                                <span className="text-xl">{selectedCountry.flag}</span>
+                                <span>{selectedCountry.code} {selectedCountry.dial}</span>
                             </span>
-                            <ChevronDown size={16} className="text-gray-500" />
-                        </div>
+                            <ChevronDown size={16} className={`text-gray-500 transition-transform ${showCountryDropdown ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {showCountryDropdown && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-20 max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
+                                {countries.map((c) => (
+                                    <button
+                                        key={c.code}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedCountry(c);
+                                            setShowCountryDropdown(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 text-left text-white transition-colors border-b border-gray-800 last:border-0"
+                                    >
+                                        <span className="text-xl">{c.flag}</span>
+                                        <span className="flex-1">{c.name}</span>
+                                        <span className="text-gray-500 text-sm">{c.dial}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-400 mb-2">Phone Number</label>
@@ -230,6 +280,181 @@ export const AddClientForm = () => {
                         <p className="text-xs text-yellow-500 mt-2">No plans available. Create plans first.</p>
                     )}
                 </div>
+
+                {/* Enhanced Payment Details */}
+                {formData.planId && (
+                    <div className="space-y-6 p-6 bg-gray-900/50 rounded-2xl border border-gray-700 animate-in fade-in slide-in-from-top-4 duration-300">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+                            <CreditCard className="text-blue-500" size={20} />
+                            Payment Confirmation
+                        </h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, paymentMethod: 'CASH', paymentReference: '' })}
+                                className={`p-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${formData.paymentMethod === 'CASH'
+                                    ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                                    : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
+                                    }`}
+                            >
+                                <CreditCard size={20} />
+                                <span className="font-bold">Cash</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, paymentMethod: 'TRANSFER' })}
+                                className={`p-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${formData.paymentMethod === 'TRANSFER'
+                                    ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                                    : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
+                                    }`}
+                            >
+                                <RefreshCw size={20} />
+                                <span className="font-bold">Transfer</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, paymentMethod: 'POS', paymentReference: '' })}
+                                className={`p-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${formData.paymentMethod === 'POS'
+                                    ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                                    : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
+                                    }`}
+                            >
+                                <CreditCard size={20} />
+                                <span className="font-bold">POS/Card</span>
+                            </button>
+                        </div>
+
+                        {user?.role === 'ADMIN' && (
+                            <button
+                                type="button"
+                                onClick={() => setFormData({
+                                    ...formData,
+                                    paymentMethod: 'COMPLIMENTARY',
+                                    paymentReference: 'Admin Override - 30 Days',
+                                    complimentaryDuration: 30
+                                })}
+                                className={`w-full p-3 mt-2 rounded-xl border border-dashed transition-all flex items-center justify-center gap-2 ${formData.paymentMethod === 'COMPLIMENTARY'
+                                    ? 'bg-yellow-600/20 border-yellow-500 text-yellow-500'
+                                    : 'bg-gray-800 border-gray-700 text-gray-500 hover:border-yellow-600/50'
+                                    }`}
+                            >
+                                <Check size={16} />
+                                <span className="font-bold uppercase tracking-wider text-xs">Complimentary / On the House</span>
+                            </button>
+                        )}
+
+                        {formData.paymentMethod === 'COMPLIMENTARY' && (
+                            <div className="space-y-4 pt-4 border-t border-gray-800">
+                                <div className="p-4 bg-yellow-900/10 border border-yellow-500/20 rounded-xl">
+                                    <p className="text-yellow-500 text-xs font-bold uppercase mb-2">Complimentary Duration</p>
+                                    <div className="grid grid-cols-2 gap-2 mb-4">
+                                        {[
+                                            { label: '30 Days', val: 30 },
+                                            { label: '6 Months', val: 180 },
+                                            { label: '1 Year', val: 365 },
+                                            { label: '2 Years', val: 730 }
+                                        ].map(opt => (
+                                            <button
+                                                key={opt.val}
+                                                type="button"
+                                                onClick={() => setFormData({
+                                                    ...formData,
+                                                    complimentaryDuration: opt.val,
+                                                    paymentReference: `Admin Override - ${opt.label}`
+                                                })}
+                                                className={`p-2 rounded-lg border text-xs transition-all ${formData.complimentaryDuration === opt.val
+                                                    ? 'bg-yellow-500/30 border-yellow-500 text-yellow-500'
+                                                    : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
+                                                    }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-gray-500 uppercase font-bold">Custom Days</label>
+                                        <input
+                                            type="number"
+                                            value={formData.customDurationValue}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value);
+                                                setFormData({
+                                                    ...formData,
+                                                    customDurationValue: e.target.value,
+                                                    complimentaryDuration: isNaN(val) ? formData.complimentaryDuration : val,
+                                                    paymentReference: isNaN(val) ? formData.paymentReference : `Admin Override - Custom ${val} Days`
+                                                });
+                                            }}
+                                            placeholder="Days..."
+                                            className="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-yellow-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {(formData.paymentMethod === 'TRANSFER' || formData.paymentMethod === 'POS') && (
+                            <div className="space-y-4 pt-4 border-t border-gray-800">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-400">Reference Number *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.paymentReference}
+                                        onChange={(e) => setFormData({ ...formData, paymentReference: e.target.value })}
+                                        className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-blue-500"
+                                        placeholder="Enter transaction reference"
+                                    />
+                                </div>
+
+                                {formData.paymentMethod === 'TRANSFER' && (
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-400">Confirmation Image</label>
+                                        {formData.paymentImage ? (
+                                            <div className="relative aspect-video rounded-xl overflow-hidden border border-gray-700">
+                                                <img src={formData.paymentImage} className="w-full h-full object-contain bg-black" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, paymentImage: "" })}
+                                                    className="absolute top-2 right-2 bg-red-600 p-1 rounded-full text-white"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-700 rounded-xl hover:border-blue-500 transition cursor-pointer">
+                                                <Upload size={24} className="text-gray-500 mb-2" />
+                                                <span className="text-xs text-gray-400">Upload screenshot</span>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            const reader = new FileReader();
+                                                            reader.onloadend = () => setFormData({ ...formData, paymentImage: reader.result as string });
+                                                            reader.readAsDataURL(file);
+                                                        }
+                                                    }}
+                                                />
+                                            </label>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {formData.paymentMethod === 'CASH' && (
+                            <div className="p-4 bg-green-900/10 border border-green-500/20 rounded-xl">
+                                <p className="text-green-400 text-sm text-center">
+                                    Confirm receipt of cash payment before creating profile.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Submit Button */}
                 <button

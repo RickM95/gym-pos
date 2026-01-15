@@ -19,6 +19,11 @@ export interface Subscription {
     startDate: string;
     endDate: string;
     isActive: boolean;
+    paymentMethod: 'CASH' | 'TRANSFER' | 'POS' | 'COMPLIMENTARY';
+    paymentAmount: number;
+    paymentReference?: string;
+    paymentImage?: string;
+    adminName?: string;
     updatedAt: string;
     synced: number;
 }
@@ -44,30 +49,56 @@ export const subscriptionService = {
     },
 
     // --- SUBSCRIPTIONS ---
-    async assignSubscription(clientId: string, planId: string) {
+    async assignSubscription(
+        clientId: string,
+        planId: string,
+        paymentDetails: {
+            method: 'CASH' | 'TRANSFER' | 'POS' | 'COMPLIMENTARY',
+            amount: number,
+            reference?: string,
+            image?: string,
+            durationDays?: number,
+            adminName?: string
+        }
+    ) {
         const db = await getDB();
-        const plan = await db.get('plans', planId);
-        if (!plan) throw new Error("Plan not found");
+
+        let planName = "Custom / Complimentary";
+        let durationDays = paymentDetails.durationDays || 30; // Default or custom
+
+        if (planId !== 'complimentary') {
+            const plan = await db.get('plans', planId);
+            if (!plan) throw new Error("Plan not found");
+            planName = plan.name;
+            // Use plan duration unless custom is provided
+            if (!paymentDetails.durationDays) durationDays = plan.durationDays;
+        } else {
+            planName = paymentDetails.adminName
+                ? `Direct Contract - ${paymentDetails.adminName}`
+                : "Direct Contract";
+        }
 
         // Calculate end date
         const startDate = new Date();
         const endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + plan.durationDays);
+        endDate.setDate(endDate.getDate() + durationDays);
 
         const subscription: Subscription = {
             id: uuidv4(),
             clientId,
             planId,
-            planName: plan.name,
+            planName,
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString(),
             isActive: true,
+            paymentMethod: paymentDetails.method,
+            paymentAmount: paymentDetails.amount,
+            paymentReference: paymentDetails.reference,
+            paymentImage: paymentDetails.image,
+            adminName: paymentDetails.adminName,
             updatedAt: new Date().toISOString(),
             synced: 0
         };
-
-        // Deactivate old active subscriptions for this user?
-        // For MVP, we'll just add the new one. The check-in logic will look for ANY valid one.
 
         await db.add('subscriptions', subscription);
         await logEvent('SUBSCRIPTION_CREATED', subscription);
@@ -95,7 +126,7 @@ export const subscriptionService = {
     async getExpiringSubscriptions(daysAhead: number = 7): Promise<Subscription[]> {
         const db = await getDB();
         const allSubs = await db.getAll('subscriptions');
-        
+
         const now = new Date();
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + daysAhead);
@@ -112,7 +143,7 @@ export const subscriptionService = {
     async getAllClientSubscriptions(clientId: string): Promise<Subscription[]> {
         const db = await getDB();
         const allSubs = await db.getAllFromIndex('subscriptions', 'by-client', clientId);
-        
+
         return (allSubs as Subscription[]).sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
     }
 };
