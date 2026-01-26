@@ -1,5 +1,15 @@
 import { getDB } from '../db';
 import { logEvent } from '../sync';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+
+// Extend jsPDF with autoTable type
+declare module 'jspdf' {
+    interface jsPDF {
+        autoTable: (options: any) => jsPDF;
+    }
+}
 
 export interface DashboardStats {
     totalClients: number;
@@ -455,16 +465,213 @@ export const reportService = {
 
     // --- EXPORT FORMATS ---
     async generatePDFReport(config: ReportConfig, data: any, startDate: string, endDate: string): Promise<Blob> {
-        // This would use a PDF library like jsPDF or Puppeteer
-        // For now, return a simple text-based report
-        const reportText = this.generateTextReport(config, data, startDate, endDate);
-        return new Blob([reportText], { type: 'text/plain' });
+        const doc = new jsPDF();
+        const margin = 20;
+        let currentY = 20;
+
+        // Add Disclaimer for Tax Reports
+        if (config.type === 'TAX') {
+            doc.setFillColor(254, 242, 242); // bg-red-50
+            doc.rect(margin, currentY, 170, 30, 'F');
+            doc.setDrawColor(239, 68, 68); // border-red-500
+            doc.rect(margin, currentY, 170, 30, 'S');
+
+            doc.setFontSize(12);
+            doc.setTextColor(185, 28, 28); // text-red-700
+            doc.setFont('helvetica', 'bold');
+            doc.text('UNOFFICIAL DOCUMENT - FOR INFORMATIONAL PURPOSES ONLY', margin + 5, currentY + 10);
+
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text([
+                'NOT VALID FOR OFFICIAL TAX FILING OR LEGAL USE',
+                'Consult with a certified accountant for official tax matters.'
+            ], margin + 5, currentY + 18);
+
+            currentY += 40;
+        }
+
+        // Header
+        doc.setFontSize(22);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'bold');
+        doc.text(config.name, margin, currentY);
+        currentY += 10;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Period: ${startDate} to ${endDate}`, margin, currentY);
+        currentY += 5;
+        doc.text(`Generated: ${new Date().toLocaleString()}`, margin, currentY);
+        currentY += 15;
+
+        // Body Content
+        doc.setTextColor(0, 0, 0);
+        switch (config.type) {
+            case 'FINANCIAL':
+                doc.setFontSize(14);
+                doc.text(`Total Revenue: ${data.totalRevenue.toLocaleString()} HNL`, margin, currentY);
+                currentY += 10;
+
+                const planRows = Object.entries(data.revenueByPlan || {}).map(([plan, rev]) => [plan, `${Number(rev).toLocaleString()} HNL`]);
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Plan Name', 'Revenue']],
+                    body: planRows,
+                    theme: 'striped',
+                    headStyles: { fillColor: [59, 130, 246] }
+                });
+                break;
+
+            case 'MEMBERSHIP':
+                const memberRows = [
+                    ['Total Clients', data.totalClients],
+                    ['Active Members', data.activeMembers],
+                    ['New Members', data.newMembers],
+                    ['Retention Rate', `${data.retentionRate.toFixed(2)}%`]
+                ];
+                doc.autoTable({
+                    startY: currentY,
+                    body: memberRows,
+                    theme: 'plain',
+                    styles: { fontSize: 12 }
+                });
+                break;
+
+            case 'ATTENDANCE':
+                doc.setFontSize(14);
+                doc.text(`Total Check-ins: ${data.totalCheckins}`, margin, currentY);
+                currentY += 7;
+                doc.text(`Peak Hour: ${data.peakHour}`, margin, currentY);
+                currentY += 10;
+
+                const attendRows = Object.entries(data.checkinsByDate || {}).map(([date, count]) => [date, count]);
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Date', 'Check-ins']],
+                    body: attendRows,
+                    theme: 'striped',
+                    headStyles: { fillColor: [16, 185, 129] }
+                });
+                break;
+
+            case 'TAX':
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Tax Summary', margin, currentY);
+                currentY += 5;
+
+                const taxSummaryRows = [
+                    ['Total Revenue', `L ${data.taxSummary.totalRevenue.toFixed(2)}`],
+                    ['Taxable Revenue', `L ${data.taxSummary.taxableRevenue.toFixed(2)}`],
+                    ['IVA Collected (15%)', `L ${data.taxSummary.ivaCollected.toFixed(2)}`],
+                    ['IVA Paid (Expenses)', `L ${data.taxSummary.ivaPaid.toFixed(2)}`],
+                    ['Net Tax to Pay', `L ${data.taxSummary.netTax.toFixed(2)}`]
+                ];
+
+                doc.autoTable({
+                    startY: currentY,
+                    body: taxSummaryRows,
+                    theme: 'grid'
+                });
+
+                currentY = (doc as any).lastAutoTable.finalY + 15;
+                doc.setFontSize(14);
+                doc.text('Transaction Details', margin, currentY);
+                currentY += 5;
+
+                const transRows = data.details.clientTransactions.map((t: any) => [
+                    t.clientName,
+                    `L ${t.amount.toFixed(2)}`,
+                    `L ${t.iva.toFixed(2)}`,
+                    new Date(t.date).toLocaleDateString(),
+                    t.service
+                ]);
+
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Client', 'Base', 'IVA', 'Date', 'Plan']],
+                    body: transRows,
+                    styles: { fontSize: 8 }
+                });
+                break;
+        }
+
+        return doc.output('blob');
     },
 
     async generateExcelReport(config: ReportConfig, data: any, startDate: string, endDate: string): Promise<Blob> {
-        // This would use a library like SheetJS
-        // For now, return CSV format
-        return this.generateCSVReport(config, data, startDate, endDate);
+        const wb = XLSX.utils.book_new();
+        let wsData: any[] = [];
+
+        // Meta Info
+        wsData.push([config.name]);
+        wsData.push([`Period: ${startDate} to ${endDate}`]);
+        wsData.push([`Generated: ${new Date().toLocaleString()}`]);
+        wsData.push([]);
+
+        if (config.type === 'TAX') {
+            wsData.push(['⚠️ UNOFFICIAL DOCUMENT - FOR INFORMATIONAL PURPOSES ONLY ⚠️']);
+            wsData.push(['NOT VALID FOR OFFICIAL TAX FILING OR LEGAL USE']);
+            wsData.push([]);
+        }
+
+        switch (config.type) {
+            case 'FINANCIAL':
+                wsData.push(['Summary']);
+                wsData.push(['Metric', 'Value']);
+                wsData.push(['Total Revenue', data.totalRevenue]);
+                wsData.push(['Total Subscriptions', data.totalSubscriptions]);
+                wsData.push([]);
+                wsData.push(['Revenue by Plan']);
+                wsData.push(['Plan', 'Amount']);
+                Object.entries(data.revenueByPlan || {}).forEach(([plan, rev]) => {
+                    wsData.push([plan, rev]);
+                });
+                break;
+
+            case 'MEMBERSHIP':
+                wsData.push(['Metric', 'Value']);
+                wsData.push(['Total Clients', data.totalClients]);
+                wsData.push(['Active Members', data.activeMembers]);
+                wsData.push(['New Members', data.newMembers]);
+                wsData.push(['Retention Rate', `${data.retentionRate.toFixed(2)}%`]);
+                break;
+
+            case 'ATTENDANCE':
+                wsData.push(['Total Check-ins', data.totalCheckins]);
+                wsData.push(['Peak Hour', data.peakHour]);
+                wsData.push([]);
+                wsData.push(['Daily Breakdown']);
+                wsData.push(['Date', 'Count']);
+                Object.entries(data.checkinsByDate || {}).forEach(([date, count]) => {
+                    wsData.push([date, count]);
+                });
+                break;
+
+            case 'TAX':
+                wsData.push(['TAX SUMMARY']);
+                wsData.push(['Metric', 'Amount (HNL)']);
+                wsData.push(['Total Revenue', data.taxSummary.totalRevenue]);
+                wsData.push(['Taxable Revenue', data.taxSummary.taxableRevenue]);
+                wsData.push(['Exempt Revenue', data.taxSummary.exemptRevenue]);
+                wsData.push(['IVA Collected', data.taxSummary.ivaCollected]);
+                wsData.push(['IVA Paid', data.taxSummary.ivaPaid]);
+                wsData.push(['Net Tax', data.taxSummary.netTax]);
+                wsData.push([]);
+                wsData.push(['TRANSACTION DETAILS']);
+                wsData.push(['Client Name', 'Amount', 'IVA', 'Date', 'Service']);
+                data.details.clientTransactions.forEach((t: any) => {
+                    wsData.push([t.clientName, t.amount, t.iva, t.date, t.service]);
+                });
+                break;
+        }
+
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, 'Report');
+        const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        return new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     },
 
     async generateCSVReport(config: ReportConfig, data: any, startDate: string, endDate: string): Promise<Blob> {
