@@ -113,8 +113,8 @@ export const REPORT_CONFIGS: ReportConfig[] = [
     },
     {
         id: 'tax_monthly',
-        name: 'Monthly Tax Declaration (SAR)',
-        description: 'Monthly tax declaration for Honduran tax authority',
+        name: 'Monthly ISV Calculator (SAR)',
+        description: 'Monthly tax calculation and guidance for Honduran ISV planning',
         type: 'TAX',
         template: 'tax_monthly',
         requiredFields: ['taxSummary', 'details', 'institution'],
@@ -123,8 +123,8 @@ export const REPORT_CONFIGS: ReportConfig[] = [
     },
     {
         id: 'tax_quarterly',
-        name: 'Quarterly Tax Declaration (SAR)',
-        description: 'Quarterly tax declaration for Honduran tax authority',
+        name: 'Quarterly ISV Calculator (SAR)',
+        description: 'Quarterly tax calculation and guidance for Honduran ISV planning',
         type: 'TAX',
         template: 'tax_quarterly',
         requiredFields: ['taxSummary', 'details', 'institution'],
@@ -133,8 +133,8 @@ export const REPORT_CONFIGS: ReportConfig[] = [
     },
     {
         id: 'tax_iva',
-        name: 'IVA Declaration (SAR)',
-        description: 'Monthly IVA declaration for Honduran tax authority',
+        name: 'IVA/ISV Calculator (SAR)',
+        description: 'ISV calculation for Honduran tax compliance and planning',
         type: 'TAX',
         template: 'tax_iva',
         requiredFields: ['taxSummary', 'details', 'institution'],
@@ -588,6 +588,35 @@ export const reportService = {
                     body: transRows,
                     styles: { fontSize: 8 }
                 });
+
+                // Add Legal Advice Section
+                currentY = (doc as any).lastAutoTable.finalY + 15;
+                if (currentY > 250) {
+                    doc.addPage();
+                    currentY = 20;
+                }
+
+                doc.setFillColor(243, 244, 246); // bg-gray-100
+                doc.rect(margin, currentY, 170, 45, 'F');
+                doc.setDrawColor(209, 213, 219); // border-gray-300
+                doc.rect(margin, currentY, 170, 45, 'S');
+
+                doc.setFontSize(11);
+                doc.setTextColor(31, 41, 55); // text-gray-800
+                doc.setFont('helvetica', 'bold');
+                doc.text('LEGAL ASSISTANCE & SAR GUIDANCE (2025)', margin + 5, currentY + 10);
+
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(75, 85, 99); // text-gray-600
+                const advice = [
+                    '• Reference: SAR-Ayuda-Declaracion-Jurada-Impuesto-Sobre-Ventas-ISV.pdf',
+                    '• Based on Generalidades-ISV-2025.pdf: The standard 15% rate applies to gym services.',
+                    '• Credit Warning: Review credits allowed per "Generalidades-creditos-en-la-declaracion-del-ISV.pdf".',
+                    '• Compliance: This calculator is for planning. Use the official SAR portal for declarations.',
+                    '• Tip: Keep all physical/digital receipts for at least 5 years as per Honduran Tax Code.'
+                ];
+                doc.text(advice, margin + 5, currentY + 18);
                 break;
         }
 
@@ -658,6 +687,13 @@ export const reportService = {
                 data.details.clientTransactions.forEach((t: any) => {
                     wsData.push([t.clientName, t.amount, t.iva, t.date, t.service]);
                 });
+                wsData.push([]);
+                wsData.push(['LEGAL ASSISTANCE & SAR GUIDANCE (2025)']);
+                wsData.push(['Source', 'Guidance']);
+                wsData.push(['SAR ISV Guide', 'Verify calculations against official Sworn Declaration forms.']);
+                wsData.push(['Generalities 2025', '15% ISV applies to all standard memberships and physical products.']);
+                wsData.push(['Tax Credits Guide', 'Ensure input vat credits are properly documented to be deductible.']);
+                wsData.push(['Internal Control', 'Maintain ledger of daily sales to reconcile with SAR monthly reports.']);
                 break;
         }
 

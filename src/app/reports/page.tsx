@@ -221,15 +221,15 @@ export default function ReportsPage() {
                                                 <div className="flex items-center gap-3">
                                                     <FileText className="text-yellow-400" size={24} />
                                                     <div>
-                                                        <h2 className="text-xl font-bold text-white">Honduran Tax Reports</h2>
-                                                        <p className="text-sm text-gray-400">Tax declarations for Servicios de Administración de Rentas</p>
+                                                        <h2 className="text-xl font-bold text-white">Honduran Tax Calculators & Help</h2>
+                                                        <p className="text-sm text-gray-400">Tax estimation and guidance for Servicios de Administración de Rentas</p>
                                                     </div>
                                                 </div>
                                                 <button
                                                     onClick={() => setShowTaxModal(true)}
                                                     className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium"
                                                 >
-                                                    Create Tax Report
+                                                    Create Tax Calculation
                                                 </button>
                                             </div>
 
@@ -244,7 +244,7 @@ export default function ReportsPage() {
                                                         <div key={report.id} className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
                                                             <div className="flex justify-between items-start">
                                                                 <div>
-                                                                    <h4 className="font-bold text-white">Period: {report.reportingPeriod.startDate} to {report.reportingPeriod.endDate}</h4>
+                                                                    <h4 className="font-bold text-white">Calculation: {report.reportingPeriod.startDate} to {report.reportingPeriod.endDate}</h4>
                                                                     <p className="text-sm text-gray-400">Status:
                                                                         <span className={`ml-2 px-2 py-1 rounded text-xs ${report.status === 'FILED' ? 'bg-green-900/30 text-green-400' :
                                                                             report.status === 'DRAFT' ? 'bg-yellow-900/30 text-yellow-400' :
@@ -275,10 +275,12 @@ export default function ReportsPage() {
                                     <div className="mt-8 bg-gray-800 p-6 rounded-xl border border-gray-700">
                                         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                                             <Shield size={20} className="text-blue-400" />
-                                            Honduran Tax Compliance
+                                            Honduran Tax Guidance & Informational Calculations
                                         </h3>
                                         <div className="text-sm text-gray-400 space-y-2">
-                                            <p>• IVA rate: 15% (as of current legislation)</p>
+                                            <p>• Disclaimer: These are informational calculators for gym management only.</p>
+                                            <p>• Guidance: Based on SAR 2025 "Ayuda-Declaracion-Jurada-Impuesto-Sobre-Ventas-ISV.pdf".</p>
+                                            <p>• IVA rate: 15% (as of current legislation in Honduras).</p>
                                             <p>• Tax reporting deadlines: Monthly (20th), Quarterly (15th), Annual (90th after year end)</p>
                                             <p>• Required documentation: RTN, CAE, supporting documents</p>
                                             <p>• All declarations must include complete economic activity details</p>
