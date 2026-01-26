@@ -1,15 +1,8 @@
 import { getDB } from '../db';
 import { logEvent } from '../sync';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-
-// Extend jsPDF with autoTable type
-declare module 'jspdf' {
-    interface jsPDF {
-        autoTable: (options: any) => jsPDF;
-    }
-}
 
 export interface DashboardStats {
     totalClients: number;
@@ -515,10 +508,10 @@ export const reportService = {
                 currentY += 10;
 
                 const planRows = Object.entries(data.revenueByPlan || {}).map(([plan, rev]) => [plan, `${Number(rev).toLocaleString()} HNL`]);
-                doc.autoTable({
+                autoTable(doc, {
                     startY: currentY,
                     head: [['Plan Name', 'Revenue']],
-                    body: planRows,
+                    body: planRows as any[],
                     theme: 'striped',
                     headStyles: { fillColor: [59, 130, 246] }
                 });
@@ -531,9 +524,9 @@ export const reportService = {
                     ['New Members', data.newMembers],
                     ['Retention Rate', `${data.retentionRate.toFixed(2)}%`]
                 ];
-                doc.autoTable({
+                autoTable(doc, {
                     startY: currentY,
-                    body: memberRows,
+                    body: memberRows as any[],
                     theme: 'plain',
                     styles: { fontSize: 12 }
                 });
@@ -547,10 +540,10 @@ export const reportService = {
                 currentY += 10;
 
                 const attendRows = Object.entries(data.checkinsByDate || {}).map(([date, count]) => [date, count]);
-                doc.autoTable({
+                autoTable(doc, {
                     startY: currentY,
                     head: [['Date', 'Check-ins']],
-                    body: attendRows,
+                    body: attendRows as any[],
                     theme: 'striped',
                     headStyles: { fillColor: [16, 185, 129] }
                 });
@@ -570,7 +563,7 @@ export const reportService = {
                     ['Net Tax to Pay', `L ${data.taxSummary.netTax.toFixed(2)}`]
                 ];
 
-                doc.autoTable({
+                autoTable(doc, {
                     startY: currentY,
                     body: taxSummaryRows,
                     theme: 'grid'
@@ -589,7 +582,7 @@ export const reportService = {
                     t.service
                 ]);
 
-                doc.autoTable({
+                autoTable(doc, {
                     startY: currentY,
                     head: [['Client', 'Base', 'IVA', 'Date', 'Plan']],
                     body: transRows,

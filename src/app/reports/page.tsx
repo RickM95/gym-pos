@@ -55,7 +55,8 @@ export default function ReportsPage() {
 
             // Generate filename
             const config = REPORT_CONFIGS.find(c => c.id === configId);
-            const filename = `${config?.name}_${dateRange.startDate}_to_${dateRange.endDate}.${format.toLowerCase()}`;
+            const ext = format === 'EXCEL' ? 'xlsx' : format.toLowerCase();
+            const filename = `${config?.name}_${dateRange.startDate}_to_${dateRange.endDate}.${ext}`;
             a.download = filename;
 
             document.body.appendChild(a);
@@ -79,7 +80,8 @@ export default function ReportsPage() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Tax_Report_${reportId}_${dateRange.startDate}_to_${dateRange.endDate}.${format.toLowerCase()}`;
+            const ext = format === 'EXCEL' ? 'xlsx' : format.toLowerCase();
+            a.download = `Tax_Report_${reportId}_${dateRange.startDate}_to_${dateRange.endDate}.${ext}`;
 
             document.body.appendChild(a);
             a.click();
