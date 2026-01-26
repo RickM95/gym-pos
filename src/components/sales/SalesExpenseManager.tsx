@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { 
-    Plus, 
-    Search, 
+import {
+    Plus,
+    Search,
     Calendar,
     DollarSign,
     ShoppingCart,
@@ -13,20 +13,30 @@ import {
     Filter,
     Download,
     Receipt,
-    Users
+    Users,
+    ArrowLeft
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { analyticsService, Expense } from "@/lib/services/analyticsService";
 import { inventoryService, Sale } from "@/lib/services/inventoryService";
+import AddSaleModal from "./AddSaleModal";
+import AddExpenseModal from "./AddExpenseModal";
+import RecurringExpensesManager from "./RecurringExpensesManager";
 
 export default function SalesExpenseManager() {
     const [sales, setSales] = useState<Sale[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [filteredSales, setFilteredSales] = useState<Sale[]>([]);
     const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
-    const [activeTab, setActiveTab] = useState<'sales' | 'expenses' | 'summary'>('summary');
+    const [activeTab, setActiveTab] = useState<'sales' | 'expenses' | 'summary' | 'recurring'>('summary');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('month');
     const [loading, setLoading] = useState(true);
+
+    // Modal State
+    const [showSaleModal, setShowSaleModal] = useState(false);
+    const [showExpenseModal, setShowExpenseModal] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -39,7 +49,7 @@ export default function SalesExpenseManager() {
     const loadData = async () => {
         try {
             const [startDate, endDate] = getDateRange();
-            
+
             const [salesData, expensesData] = await Promise.all([
                 inventoryService.getSales(startDate, endDate),
                 analyticsService.getExpenses(startDate, endDate)
@@ -86,14 +96,14 @@ export default function SalesExpenseManager() {
         }
 
         const lowerSearch = searchTerm.toLowerCase();
-        
-        const filteredSalesData = sales.filter(sale => 
+
+        const filteredSalesData = sales.filter(sale =>
             sale.id.toLowerCase().includes(lowerSearch) ||
             sale.paymentMethod.toLowerCase().includes(lowerSearch) ||
             sale.items.some(item => item.productId.toLowerCase().includes(lowerSearch))
         );
 
-        const filteredExpensesData = expenses.filter(expense => 
+        const filteredExpensesData = expenses.filter(expense =>
             expense.description.toLowerCase().includes(lowerSearch) ||
             expense.category.toLowerCase().includes(lowerSearch) ||
             expense.vendor?.toLowerCase().includes(lowerSearch)
@@ -130,17 +140,16 @@ export default function SalesExpenseManager() {
             'MARKETING': 'bg-red-900/50 text-red-400',
             'SUPPLIES': 'bg-indigo-900/50 text-indigo-400',
             'MAINTENANCE': 'bg-orange-900/50 text-orange-400',
+            'LOAN': 'bg-pink-900/50 text-pink-400',
             'OTHER': 'bg-gray-700 text-gray-400'
         };
         return colors[category] || colors['OTHER'];
     };
 
+    const router = useRouter();
+
     if (loading) {
-        return (
-            <div className="p-12 text-center text-gray-500 animate-pulse">
-                Loading Sales & Expense Management...
-            </div>
-        );
+        return <LoadingSpinner message="Fetching Sales & Revenue..." />;
     }
 
     const totals = calculateTotals();
@@ -149,9 +158,18 @@ export default function SalesExpenseManager() {
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-white">Sales & Expense Management</h1>
-                    <p className="text-gray-400 mt-1">Track revenue, expenses, and profitability</p>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => router.back()}
+                        className="p-2 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-lg border border-gray-700 transition"
+                        title="Go Back"
+                    >
+                        <ArrowLeft size={20} />
+                    </button>
+                    <div>
+                        <h1 className="text-3xl font-bold text-white">Sales & Revenue</h1>
+                        <p className="text-gray-400 mt-1">Track revenue, expenses, and profitability</p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <select
@@ -200,9 +218,8 @@ export default function SalesExpenseManager() {
                         <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                             <DollarSign size={20} className="text-blue-400" />
                         </div>
-                        <div className={`flex items-center gap-1 text-sm font-medium ${
-                            totals.netProfit >= 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
+                        <div className={`flex items-center gap-1 text-sm font-medium ${totals.netProfit >= 0 ? 'text-green-400' : 'text-red-400'
+                            }`}>
                             {totals.netProfit >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                         </div>
                     </div>
@@ -217,9 +234,8 @@ export default function SalesExpenseManager() {
                         <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
                             <TrendingUp size={20} className="text-purple-400" />
                         </div>
-                        <div className={`flex items-center gap-1 text-sm font-medium ${
-                            totals.profitMargin >= 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
+                        <div className={`flex items-center gap-1 text-sm font-medium ${totals.profitMargin >= 0 ? 'text-green-400' : 'text-red-400'
+                            }`}>
                             {totals.profitMargin >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                         </div>
                     </div>
@@ -236,16 +252,16 @@ export default function SalesExpenseManager() {
                     {[
                         { id: 'summary', label: 'Summary', icon: <DollarSign size={18} /> },
                         { id: 'sales', label: `Sales (${filteredSales.length})`, icon: <ShoppingCart size={18} /> },
-                        { id: 'expenses', label: `Expenses (${filteredExpenses.length})`, icon: <Receipt size={18} /> }
+                        { id: 'expenses', label: `Expenses (${filteredExpenses.length})`, icon: <Receipt size={18} /> },
+                        { id: 'recurring', label: 'Recurring', icon: <Calendar size={18} /> }
                     ].map(({ id, label, icon }) => (
                         <button
                             key={id}
                             onClick={() => setActiveTab(id as any)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition ${
-                                activeTab === id 
-                                    ? 'bg-blue-600 text-white' 
-                                    : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'
-                            }`}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition ${activeTab === id
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'
+                                }`}
                         >
                             {icon}
                             {label}
@@ -264,6 +280,11 @@ export default function SalesExpenseManager() {
                     />
                 </div>
             </div>
+
+            {/* RECURRING TAB */}
+            {activeTab === 'recurring' && (
+                <RecurringExpensesManager />
+            )}
 
             {/* SUMMARY TAB */}
             {activeTab === 'summary' && (
@@ -346,7 +367,10 @@ export default function SalesExpenseManager() {
                 <div className="bg-gray-800 rounded-xl border border-gray-700">
                     <div className="p-6 border-b border-gray-700 flex items-center justify-between">
                         <h3 className="text-lg font-bold text-white">Sales Transactions</h3>
-                        <button className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2">
+                        <button
+                            onClick={() => setShowSaleModal(true)}
+                            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
+                        >
                             <Plus size={18} />
                             Add Sale
                         </button>
@@ -386,11 +410,10 @@ export default function SalesExpenseManager() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                                                sale.paymentStatus === 'PAID' ? 'bg-green-900/50 text-green-400' :
+                                            <span className={`px-2 py-1 text-xs rounded-full font-medium ${sale.paymentStatus === 'PAID' ? 'bg-green-900/50 text-green-400' :
                                                 sale.paymentStatus === 'PENDING' ? 'bg-yellow-900/50 text-yellow-400' :
-                                                'bg-gray-700 text-gray-400'
-                                            }`}>
+                                                    'bg-gray-700 text-gray-400'
+                                                }`}>
                                                 {sale.paymentStatus}
                                             </span>
                                         </td>
@@ -415,11 +438,15 @@ export default function SalesExpenseManager() {
                 <div className="bg-gray-800 rounded-xl border border-gray-700">
                     <div className="p-6 border-b border-gray-700 flex items-center justify-between">
                         <h3 className="text-lg font-bold text-white">Expense Transactions</h3>
-                        <button className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2">
+                        <button
+                            onClick={() => setShowExpenseModal(true)}
+                            className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
+                        >
                             <Plus size={18} />
                             Add Expense
                         </button>
                     </div>
+
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="bg-gray-900/50">
@@ -440,6 +467,11 @@ export default function SalesExpenseManager() {
                                             <span className={`px-2 py-1 text-xs rounded-full font-medium ${getCategoryColor(expense.category)}`}>
                                                 {expense.category}
                                             </span>
+                                            {expense.category === 'LOAN' && expense.originalAmount && (
+                                                <div className="mt-1 text-[10px] text-blue-400 font-bold">
+                                                    INT: {expense.interestRate}%
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                                             {new Date(expense.date).toLocaleDateString()}
@@ -448,7 +480,12 @@ export default function SalesExpenseManager() {
                                             {expense.vendor || '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                            {expense.paymentMethod}
+                                            <div>
+                                                <p>{expense.paymentMethod}</p>
+                                                {expense.category === 'LOAN' && (
+                                                    <p className="text-[10px] text-yellow-500 font-medium">Debt Pmt</p>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-red-400">
                                             -{new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' }).format(expense.amount)}
@@ -464,6 +501,21 @@ export default function SalesExpenseManager() {
                         )}
                     </div>
                 </div>
+            )}
+
+            {/* Modals */}
+            {showSaleModal && (
+                <AddSaleModal
+                    onClose={() => setShowSaleModal(false)}
+                    onSave={() => loadData()}
+                />
+            )}
+
+            {showExpenseModal && (
+                <AddExpenseModal
+                    onClose={() => setShowExpenseModal(false)}
+                    onSave={() => loadData()}
+                />
             )}
         </div>
     );

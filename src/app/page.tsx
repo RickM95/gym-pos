@@ -33,6 +33,7 @@ import Navigation from "@/components/navigation/Navigation";
 import SyncIndicator from "@/components/sync/SyncIndicator";
 import { OfflineIndicator } from "@/components/ui/OfflineIndicator";
 import BugReportModal from "@/components/ui/BugReportModal";
+import RecurringPaymentsWidget from "@/components/dashboard/RecurringPaymentsWidget";
 
 function UserProfile() {
   const { user, logout, setIsLocked } = useAuth();
@@ -255,6 +256,22 @@ export default function Home() {
                       </div>
                     </Link>
                   )}
+                </div>
+
+                {/* Dashboard Widgets */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Recurring Payments */}
+                  {(user.role === 'ADMIN' || perms.view_financials) && (
+                    <div className="lg:col-span-1">
+                      <RecurringPaymentsWidget />
+                    </div>
+                  )}
+
+                  {/* Placeholder for future growth */}
+                  <div className="lg:col-span-2 bg-gray-800 rounded-xl p-6 border border-gray-700 flex flex-col justify-center items-center text-gray-500 italic text-sm">
+                    <Activity size={48} className="opacity-10 mb-2" />
+                    Additional system insights will appear here as more data is collected.
+                  </div>
                 </div>
 
                 {/* Management Grid */}

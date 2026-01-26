@@ -5,17 +5,24 @@ import Link from "next/link";
 import { workoutService, Workout } from "@/lib/services/workoutService";
 import { Plus, ArrowLeft, ClipboardList } from "lucide-react";
 import Navigation from "@/components/navigation/Navigation";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 export default function WorkoutsPage() {
     const [workouts, setWorkouts] = useState<Workout[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadWorkouts();
     }, []);
 
     const loadWorkouts = async () => {
-        const data = await workoutService.getWorkouts();
-        setWorkouts(data);
+        setLoading(true);
+        try {
+            const data = await workoutService.getWorkouts();
+            setWorkouts(data);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -37,32 +44,36 @@ export default function WorkoutsPage() {
                             </Link>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {workouts.map(w => (
-                                <div key={w.id} className="bg-gray-800 p-6 rounded-xl border border-gray-700 hover:border-blue-500 transition cursor-pointer group">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="p-3 bg-blue-900/20 text-blue-400 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition">
-                                            <ClipboardList size={24} />
+                        {loading ? (
+                            <LoadingSpinner message="Fetching routines..." />
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {workouts.map(w => (
+                                    <div key={w.id} className="bg-gray-800 p-6 rounded-xl border border-gray-700 hover:border-blue-500 transition cursor-pointer group">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="p-3 bg-blue-900/20 text-blue-400 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition">
+                                                <ClipboardList size={24} />
+                                            </div>
+                                            <span className="text-sm text-gray-500">{w.exercises.length} Exercises</span>
                                         </div>
-                                        <span className="text-sm text-gray-500">{w.exercises.length} Exercises</span>
+                                        <h3 className="text-xl font-bold mb-2">{w.name}</h3>
+                                        <ul className="text-sm text-gray-400 space-y-1">
+                                            {w.exercises.slice(0, 3).map((ex, i) => (
+                                                <li key={i}>• {ex.name} ({ex.sets}x{ex.reps})</li>
+                                            ))}
+                                            {w.exercises.length > 3 && <li>... +{w.exercises.length - 3} more</li>}
+                                        </ul>
                                     </div>
-                                    <h3 className="text-xl font-bold mb-2">{w.name}</h3>
-                                    <ul className="text-sm text-gray-400 space-y-1">
-                                        {w.exercises.slice(0, 3).map((ex, i) => (
-                                            <li key={i}>• {ex.name} ({ex.sets}x{ex.reps})</li>
-                                        ))}
-                                        {w.exercises.length > 3 && <li>... +{w.exercises.length - 3} more</li>}
-                                    </ul>
-                                </div>
-                            ))}
+                                ))}
 
-                            {workouts.length === 0 && (
-                                <div className="col-span-full text-center py-10 text-gray-500 bg-gray-800/50 rounded-xl border border-gray-800">
-                                    <p className="mb-4">No workout templates yet.</p>
-                                    <Link href="/workouts/create" className="text-blue-500 hover:underline">Create your first workout</Link>
-                                </div>
-                            )}
-                        </div>
+                                {workouts.length === 0 && (
+                                    <div className="col-span-full text-center py-10 text-gray-500 bg-gray-800/50 rounded-xl border border-gray-800">
+                                        <p className="mb-4">No workout templates yet.</p>
+                                        <Link href="/workouts/create" className="text-blue-500 hover:underline">Create your first workout</Link>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

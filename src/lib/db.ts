@@ -1,7 +1,7 @@
 import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'gym-platform-db';
-const DB_VERSION = 4;
+const DB_VERSION = 7;
 
 export type DBSchemaV1 = {
     clients: {
@@ -37,10 +37,10 @@ export type DBSchemaV1 = {
         value: {
             id: string;
             clientId: string;
-            timestamp: string;
+            timestamp: number; // Changed to number for easier indexing/ranges
             synced: number;
         };
-        indexes: { 'by-client': string };
+        indexes: { 'by-client': string; 'by-timestamp': number };
     };
     events: {
         key: string;
@@ -360,7 +360,7 @@ export type DBSchemaV1 = {
         value: {
             id: string;
             description: string;
-            category: 'RENT' | 'UTILITIES' | 'SALARIES' | 'EQUIPMENT' | 'MARKETING' | 'SUPPLIES' | 'MAINTENANCE' | 'OTHER';
+            category: 'RENT' | 'UTILITIES' | 'SALARIES' | 'EQUIPMENT' | 'MARKETING' | 'SUPPLIES' | 'MAINTENANCE' | 'LOAN' | 'OTHER';
             amount: number;
             date: string;
             vendor?: string;
@@ -399,6 +399,25 @@ export type DBSchemaV1 = {
         };
         indexes: { 'by-period': string; 'by-date': number };
     };
+    recurring_configs: {
+        key: string;
+        value: {
+            id: string;
+            name: string;
+            amount: number;
+            category: 'RENT' | 'UTILITIES' | 'SALARIES' | 'EQUIPMENT' | 'MARKETING' | 'SUPPLIES' | 'MAINTENANCE' | 'LOAN' | 'OTHER';
+            originalAmount?: number;
+            interestRate?: number;
+            vendor?: string;
+            description?: string;
+            frequency: 'MONTHLY' | 'WEEKLY' | 'YEARLY';
+            dueDay: number;
+            isActive: boolean;
+            lastPaidDate?: string;
+            createdAt: string;
+            updatedAt: string;
+        };
+    };
     // Add other stores as needed
 };
 
@@ -407,7 +426,7 @@ let dbPromise: Promise<IDBPDatabase<DBSchemaV1>>;
 export const initDB = () => {
     if (!dbPromise) {
         dbPromise = openDB<DBSchemaV1>(DB_NAME, DB_VERSION, {
-            upgrade(db) {
+            upgrade(db, oldVersion, newVersion, tx) {
                 // Clients
                 if (!db.objectStoreNames.contains('clients')) {
                     const store = db.createObjectStore('clients', { keyPath: 'id' });
@@ -422,22 +441,16 @@ export const initDB = () => {
                     const store = db.createObjectStore('subscriptions', { keyPath: 'id' });
                     store.createIndex('by-client', 'clientId');
                 }
-                // Exercises & Workouts
-                if (!db.objectStoreNames.contains('exercises')) {
-                    db.createObjectStore('exercises', { keyPath: 'id' });
-                }
-                if (!db.objectStoreNames.contains('workouts')) {
-                    db.createObjectStore('workouts', { keyPath: 'id' });
-                }
-                // Sessions
-                if (!db.objectStoreNames.contains('sessions')) {
-                    const store = db.createObjectStore('sessions', { keyPath: 'id' });
-                    store.createIndex('by-client', 'clientId');
-                }
                 // Checkins
                 if (!db.objectStoreNames.contains('checkins')) {
                     const store = db.createObjectStore('checkins', { keyPath: 'id' });
                     store.createIndex('by-client', 'clientId');
+                    store.createIndex('by-timestamp', 'timestamp');
+                } else if (oldVersion < 7) {
+                    const store = tx.objectStore('checkins');
+                    if (!store.indexNames.contains('by-timestamp')) {
+                        store.createIndex('by-timestamp', 'timestamp');
+                    }
                 }
                 // Events (Sync Queue)
                 if (!db.objectStoreNames.contains('events')) {
@@ -509,7 +522,6 @@ export const initDB = () => {
                     store.createIndex('by-date', 'saleDate');
                     store.createIndex('by-staff', 'staffId');
                 }
-                // Expenses
                 if (!db.objectStoreNames.contains('expenses')) {
                     const store = db.createObjectStore('expenses', { keyPath: 'id' });
                     store.createIndex('by-category', 'category');
@@ -520,6 +532,10 @@ export const initDB = () => {
                     const store = db.createObjectStore('revenue_analytics', { keyPath: 'id' });
                     store.createIndex('by-period', 'period');
                     store.createIndex('by-date', 'date');
+                }
+                // Recurring Configs
+                if (!db.objectStoreNames.contains('recurring_configs')) {
+                    db.createObjectStore('recurring_configs', { keyPath: 'id' });
                 }
             },
         });

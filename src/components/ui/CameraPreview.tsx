@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Camera, CameraOff, RefreshCw, AlertCircle } from "lucide-react";
+import LoadingSpinner from "./LoadingSpinner";
 
 interface CameraPreviewProps {
     onCapture?: (imageDataUrl: string) => void;
@@ -125,10 +126,7 @@ export const CameraPreview = ({
     if (isLoading) {
         return (
             <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 text-center">
-                <div className="flex flex-col items-center gap-3">
-                    <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
-                    <p className="text-gray-400">Initializing camera...</p>
-                </div>
+                <LoadingSpinner size="sm" message="Gearing up..." />
             </div>
         );
     }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Database, RefreshCw, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { initializeMockData } from "@/lib/mock/inventoryData";
 
 export default function DataInitializer() {
@@ -36,7 +37,7 @@ export default function DataInitializer() {
             await initializeMockData();
             setStatus('success');
             setMessage('Sample data initialized successfully!');
-            
+
             // Recheck status
             setTimeout(checkInitializationStatus, 1000);
         } catch (error) {
@@ -50,9 +51,9 @@ export default function DataInitializer() {
 
     const getDatabaseStatus = () => {
         if (!initializedData) return 'Unknown';
-        
+
         const { categories, products, suppliers, expenses, sales } = initializedData;
-        
+
         if (categories > 0 && products > 0 && suppliers > 0) {
             return 'Populated';
         } else if (categories > 0 || products > 0 || suppliers > 0) {
@@ -94,7 +95,7 @@ export default function DataInitializer() {
                         {/* Current Status */}
                         <div className="bg-gray-900/50 rounded-xl p-6">
                             <h3 className="text-lg font-semibold text-white mb-4">Database Status</h3>
-                            
+
                             {initializedData ? (
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div className="text-center">
@@ -115,9 +116,8 @@ export default function DataInitializer() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="text-center py-4">
-                                    <Loader2 className="animate-spin mx-auto text-gray-400 mb-2" size={24} />
-                                    <p className="text-gray-400">Checking database status...</p>
+                                <div className="py-2">
+                                    <LoadingSpinner size="sm" message="Syncing Gym Data..." />
                                 </div>
                             )}
 
@@ -162,15 +162,14 @@ export default function DataInitializer() {
 
                         {/* Status Message */}
                         {status !== 'idle' && (
-                            <div className={`p-4 rounded-lg flex items-center gap-3 ${
-                                status === 'success' ? 'bg-green-900/50 text-green-400' :
-                                status === 'error' ? 'bg-red-900/50 text-red-400' :
-                                'bg-blue-900/50 text-blue-400'
-                            }`}>
+                            <div className={`p-4 rounded-lg flex items-center gap-3 ${status === 'success' ? 'bg-green-900/50 text-green-400' :
+                                    status === 'error' ? 'bg-red-900/50 text-red-400' :
+                                        'bg-blue-900/50 text-blue-400'
+                                }`}>
                                 {status === 'success' && <CheckCircle size={20} />}
                                 {status === 'error' && <AlertCircle size={20} />}
-                                {status === 'loading' && <Loader2 className="animate-spin" size={20} />}
-                                <span>{message}</span>
+                                {status === 'loading' && <LoadingSpinner size="sm" message={message} />}
+                                {status !== 'loading' && <span>{message}</span>}
                             </div>
                         )}
 
@@ -183,8 +182,7 @@ export default function DataInitializer() {
                             >
                                 {isInitializing ? (
                                     <>
-                                        <Loader2 className="animate-spin" size={20} />
-                                        Initializing...
+                                        <LoadingSpinner size="sm" message="Hang tight..." />
                                     </>
                                 ) : (
                                     <>

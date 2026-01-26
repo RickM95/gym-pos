@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { CameraPreview } from "@/components/ui/CameraPreview";
 import { Camera, Scan, SwitchCamera, RefreshCw, AlertCircle } from "lucide-react";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 interface ScannerProps {
     onScan: (decodedText: string) => void;
@@ -105,8 +106,8 @@ export const Scanner = ({ onScan, onError, onClientPhoto }: ScannerProps) => {
                         <button
                             onClick={() => setIsClientPhotoMode(true)}
                             className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 ${isClientPhotoMode
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-700 hover:bg-gray-600 text-white'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-700 hover:bg-gray-600 text-white'
                                 }`}
                         >
                             <Camera className="w-4 h-4" />
@@ -160,8 +161,7 @@ export const Scanner = ({ onScan, onError, onClientPhoto }: ScannerProps) => {
 
                 {!isScanning && !scanError && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white p-4">
-                        <RefreshCw className="w-8 h-8 animate-spin mb-2 text-blue-400" />
-                        <p className="text-sm font-medium">Initializing camera...</p>
+                        <LoadingSpinner size="sm" message="Gearing up..." />
                     </div>
                 )}
 

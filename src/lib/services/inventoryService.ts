@@ -1,5 +1,7 @@
 import { getDB } from '../db';
 import { logEvent } from '../sync';
+import { db } from '../firebase';
+import { collection, doc, setDoc, getDocs, getDoc, updateDoc, query, where, orderBy, getCountFromServer } from 'firebase/firestore';
 
 export interface InventoryCategory {
     id: string;
@@ -25,6 +27,7 @@ export interface Product {
     maxStockLevel: number;
     unit: string;
     supplier?: string;
+    manufacturer?: string;
     expiryDate?: string;
     batchNumber?: string;
     isActive: boolean;
@@ -116,131 +119,329 @@ export interface Sale {
 export const inventoryService = {
     // --- CATEGORIES ---
     async getCategories(): Promise<InventoryCategory[]> {
-        const db = await getDB();
-        return db.getAll('inventory_categories');
+        try {
+            const q = query(collection(db, 'inventory_categories'), orderBy('name'));
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                const categories: InventoryCategory[] = [];
+                const localDb = await getDB();
+                const tx = localDb.transaction('inventory_categories', 'readwrite');
+
+                snapshot.forEach(doc => {
+                    const data = doc.data() as any;
+                    const category: InventoryCategory = {
+                        id: data.id,
+                        name: data.name,
+                        description: data.description,
+                        parentId: data.parentId,
+                        createdAt: data.createdAt,
+                        updatedAt: data.updatedAt,
+                        synced: 1
+                    };
+                    categories.push(category);
+                    tx.store.put(category);
+                });
+                await tx.done;
+                return categories;
+            }
+        } catch (error) {
+            console.error('Firebase getCategories error:', error);
+        }
+
+        const dbLocal = await getDB();
+        return dbLocal.getAll('inventory_categories');
     },
 
     async getCategory(id: string): Promise<InventoryCategory | undefined> {
-        const db = await getDB();
-        return db.get('inventory_categories', id);
+        try {
+            const docSnap = await getDoc(doc(db, 'inventory_categories', id));
+            if (docSnap.exists()) {
+                const data = docSnap.data() as any;
+                return {
+                    id: data.id,
+                    name: data.name,
+                    description: data.description,
+                    parentId: data.parentId,
+                    createdAt: data.createdAt,
+                    updatedAt: data.updatedAt,
+                    synced: 1
+                };
+            }
+        } catch (error) {
+            console.error('Firebase getCategory error:', error);
+        }
+
+        const dbLocal = await getDB();
+        return dbLocal.get('inventory_categories', id);
     },
 
     async createCategory(category: Omit<InventoryCategory, 'id' | 'createdAt' | 'updatedAt' | 'synced'>): Promise<InventoryCategory> {
-        const db = await getDB();
         const id = `CAT-${Date.now()}`;
         const now = new Date().toISOString();
-        
+
         const newCategory: InventoryCategory = {
             ...category,
             id,
             createdAt: now,
             updatedAt: now,
-            synced: 0
+            synced: 1
         };
 
-        await db.add('inventory_categories', newCategory);
+        try {
+            await setDoc(doc(db, 'inventory_categories', id), {
+                id,
+                name: category.name,
+                description: category.description || null,
+                parentId: category.parentId || null,
+                createdAt: now,
+                updatedAt: now
+            });
+        } catch (error) {
+            console.error('Firebase createCategory error:', error);
+            newCategory.synced = 0;
+        }
+
+        const dbLocal = await getDB();
+        await dbLocal.add('inventory_categories', newCategory);
         await logEvent('CATEGORY_CREATED', newCategory);
-        
+
         return newCategory;
     },
 
-    async updateCategory(id: string, data: Partial<InventoryCategory>): Promise<InventoryCategory> {
-        const db = await getDB();
-        const category = await db.get('inventory_categories', id);
-        if (!category) throw new Error('Category not found');
+    // --- SUPPLIERS ---
+    async getSuppliers(): Promise<Supplier[]> {
+        try {
+            const q = query(collection(db, 'suppliers'), orderBy('name'));
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                const suppliers: Supplier[] = [];
+                const localDb = await getDB();
+                const tx = localDb.transaction('suppliers', 'readwrite');
 
-        const updatedCategory = {
-            ...category,
-            ...data,
-            updatedAt: new Date().toISOString(),
-            synced: 0
-        };
+                snapshot.forEach(doc => {
+                    const data = doc.data() as any;
+                    const supplier: Supplier = {
+                        id: data.id,
+                        name: data.name,
+                        contactPerson: data.contactPerson,
+                        email: data.email,
+                        phone: data.phone,
+                        address: data.address,
+                        rtn: data.rtn,
+                        paymentTerms: data.paymentTerms,
+                        isActive: data.isActive,
+                        createdAt: data.createdAt,
+                        updatedAt: data.updatedAt,
+                        synced: 1
+                    };
+                    suppliers.push(supplier);
+                    tx.store.put(supplier);
+                });
+                await tx.done;
+                return suppliers;
+            }
+        } catch (error) {
+            console.error('Firebase getSuppliers error:', error);
+        }
 
-        await db.put('inventory_categories', updatedCategory);
-        await logEvent('CATEGORY_UPDATED', updatedCategory);
-        
-        return updatedCategory;
+        const dbLocal = await getDB();
+        return dbLocal.getAll('suppliers');
     },
 
     // --- PRODUCTS ---
     async getProducts(categoryId?: string): Promise<Product[]> {
-        const db = await getDB();
-        if (categoryId) {
-            return db.getAllFromIndex('products', 'by-category', categoryId);
+        try {
+            let q = query(collection(db, 'products'), orderBy('name'));
+            if (categoryId) {
+                q = query(collection(db, 'products'), where('categoryId', '==', categoryId), orderBy('name'));
+            }
+
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                const products: Product[] = [];
+                // Not clearing local DB because we might be filtered
+                snapshot.forEach(doc => {
+                    const data = doc.data() as any;
+                    const product: Product = {
+                        id: data.id,
+                        name: data.name,
+                        description: data.description,
+                        categoryId: data.categoryId,
+                        sku: data.sku,
+                        barcode: data.barcode,
+                        unitPrice: data.unitPrice,
+                        costPrice: data.costPrice,
+                        currentStock: data.currentStock,
+                        minStockLevel: data.minStockLevel,
+                        maxStockLevel: data.maxStockLevel,
+                        unit: data.unit,
+                        manufacturer: data.manufacturer,
+                        isActive: data.isActive,
+                        createdAt: data.createdAt,
+                        updatedAt: data.updatedAt,
+                        synced: 1
+                    };
+                    products.push(product);
+                });
+
+                // Sync to local
+                const dbLocal = await getDB();
+                const tx = dbLocal.transaction('products', 'readwrite');
+                for (const p of products) {
+                    tx.store.put(p);
+                }
+                await tx.done;
+
+                return products;
+            }
+        } catch (error) {
+            console.error('Firebase getProducts error:', error);
         }
-        return db.getAll('products');
+
+        const dbLocal = await getDB();
+        if (categoryId) {
+            return dbLocal.getAllFromIndex('products', 'by-category', categoryId);
+        }
+        return dbLocal.getAll('products');
+    },
+
+    async getLowStockProducts(): Promise<Product[]> {
+        const products = await this.getProducts();
+        return products.filter(p => p.currentStock <= p.minStockLevel && p.isActive);
     },
 
     async getProduct(id: string): Promise<Product | undefined> {
-        const db = await getDB();
-        return db.get('products', id);
-    },
+        try {
+            const docSnap = await getDoc(doc(db, 'products', id));
+            if (docSnap.exists()) {
+                const data = docSnap.data() as any;
+                return {
+                    id: data.id,
+                    name: data.name,
+                    description: data.description,
+                    categoryId: data.categoryId,
+                    sku: data.sku,
+                    barcode: data.barcode,
+                    unitPrice: data.unitPrice,
+                    costPrice: data.costPrice,
+                    currentStock: data.currentStock,
+                    minStockLevel: data.minStockLevel,
+                    maxStockLevel: data.maxStockLevel,
+                    unit: data.unit,
+                    manufacturer: data.manufacturer,
+                    isActive: data.isActive,
+                    createdAt: data.createdAt,
+                    updatedAt: data.updatedAt,
+                    synced: 1
+                } as Product;
+            }
+        } catch (error) {
+            console.error('Firebase getProduct error:', error);
+        }
 
-    async getProductBySKU(sku: string): Promise<Product | undefined> {
-        const db = await getDB();
-        return db.getFromIndex('products', 'by-sku', sku);
+        const dbLocal = await getDB();
+        return dbLocal.get('products', id);
     },
 
     async createProduct(product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'synced'>): Promise<Product> {
-        const db = await getDB();
         const id = `PROD-${Date.now()}`;
         const now = new Date().toISOString();
-        
+
         const newProduct: Product = {
             ...product,
             id,
             createdAt: now,
             updatedAt: now,
-            synced: 0
+            synced: 1
         };
 
-        await db.add('products', newProduct);
+        try {
+            await setDoc(doc(db, 'products', id), {
+                id,
+                name: product.name,
+                description: product.description || null,
+                categoryId: product.categoryId,
+                sku: product.sku,
+                barcode: product.barcode || null,
+                unitPrice: product.unitPrice,
+                costPrice: product.costPrice,
+                currentStock: product.currentStock,
+                minStockLevel: product.minStockLevel,
+                maxStockLevel: product.maxStockLevel,
+                unit: product.unit,
+                supplier: product.supplier || null,
+                expiryDate: product.expiryDate || null,
+                batchNumber: product.batchNumber || null,
+                isActive: product.isActive,
+                createdAt: now,
+                updatedAt: now
+            });
+        } catch (error) {
+            console.error('Firebase createProduct error:', error);
+            newProduct.synced = 0;
+        }
+
+        const dbLocal = await getDB();
+        await dbLocal.add('products', newProduct);
         await logEvent('PRODUCT_CREATED', newProduct);
-        
+
         return newProduct;
     },
 
-    async updateProduct(id: string, data: Partial<Product>): Promise<Product> {
-        const db = await getDB();
-        const product = await db.get('products', id);
+    async updateStock(productId: string, quantity: number, transactionType: InventoryTransaction['transactionType'],
+        unitCost: number, createdBy: string, referenceId?: string, referenceType?: string, notes?: string): Promise<void> {
+        // ... (existing implementation)
+        const product = await this.getProduct(productId);
         if (!product) throw new Error('Product not found');
 
-        const updatedProduct = {
-            ...product,
-            ...data,
-            updatedAt: new Date().toISOString(),
-            synced: 0
-        };
-
-        await db.put('products', updatedProduct);
-        await logEvent('PRODUCT_UPDATED', updatedProduct);
-        
-        return updatedProduct;
-    },
-
-    async updateStock(productId: string, quantity: number, transactionType: InventoryTransaction['transactionType'], 
-                     unitCost: number, createdBy: string, referenceId?: string, referenceType?: string, notes?: string): Promise<void> {
-        const db = await getDB();
-        const product = await db.get('products', productId);
-        if (!product) throw new Error('Product not found');
-
-        const newStock = transactionType === 'SALE' || transactionType === 'DAMAGE' || transactionType === 'EXPIRED' 
-            ? product.currentStock - quantity 
+        const newStock = transactionType === 'SALE' || transactionType === 'DAMAGE' || transactionType === 'EXPIRED'
+            ? product.currentStock - quantity
             : product.currentStock + quantity;
 
         if (newStock < 0) throw new Error('Insufficient stock');
 
-        // Update product stock
-        await db.put('products', {
+        const now = new Date().toISOString();
+        const transactionId = `TRANS-${Date.now()}`;
+
+        // 1. Update Firebase
+        let firebaseSuccess = false;
+        try {
+            // Update product stock
+            await updateDoc(doc(db, 'products', productId), {
+                currentStock: newStock,
+                updatedAt: now
+            });
+
+            // Create Transaction
+            await setDoc(doc(db, 'inventory_transactions', transactionId), {
+                id: transactionId,
+                productId,
+                transactionType,
+                quantity,
+                unitCost,
+                totalCost: quantity * unitCost,
+                referenceId: referenceId || null,
+                referenceType: referenceType || null,
+                notes: notes || null,
+                createdBy,
+                createdAt: now
+            });
+            firebaseSuccess = true;
+        } catch (error) {
+            console.error('Firebase updateStock error:', error);
+        }
+
+        // 2. Update Local
+        const dbLocal = await getDB();
+        await dbLocal.put('products', {
             ...product,
             currentStock: newStock,
-            updatedAt: new Date().toISOString(),
-            synced: 0
+            updatedAt: now,
+            synced: firebaseSuccess ? 1 : 0
         });
 
-        // Create inventory transaction
         const transaction: InventoryTransaction = {
-            id: `TRANS-${Date.now()}`,
+            id: transactionId,
             productId,
             transactionType,
             quantity,
@@ -250,208 +451,122 @@ export const inventoryService = {
             referenceType,
             notes,
             createdBy,
-            createdAt: new Date().toISOString(),
-            synced: 0
+            createdAt: now,
+            synced: firebaseSuccess ? 1 : 0
         };
 
-        await db.add('inventory_transactions', transaction);
+        await dbLocal.add('inventory_transactions', transaction);
         await logEvent('STOCK_UPDATED', { productId, newStock, transactionType, quantity });
     },
 
-    async getLowStockProducts(): Promise<Product[]> {
-        const db = await getDB();
-        const products = await db.getAll('products');
-        return products.filter(p => p.currentStock <= p.minStockLevel && p.isActive);
-    },
-
-    // --- SUPPLIERS ---
-    async getSuppliers(): Promise<Supplier[]> {
-        const db = await getDB();
-        return db.getAll('suppliers');
-    },
-
-    async getSupplier(id: string): Promise<Supplier | undefined> {
-        const db = await getDB();
-        return db.get('suppliers', id);
-    },
-
-    async createSupplier(supplier: Omit<Supplier, 'id' | 'createdAt' | 'updatedAt' | 'synced'>): Promise<Supplier> {
-        const db = await getDB();
-        const id = `SUP-${Date.now()}`;
-        const now = new Date().toISOString();
-        
-        const newSupplier: Supplier = {
-            ...supplier,
-            id,
-            createdAt: now,
-            updatedAt: now,
-            synced: 0
-        };
-
-        await db.add('suppliers', newSupplier);
-        await logEvent('SUPPLIER_CREATED', newSupplier);
-        
-        return newSupplier;
-    },
-
-    async updateSupplier(id: string, data: Partial<Supplier>): Promise<Supplier> {
-        const db = await getDB();
-        const supplier = await db.get('suppliers', id);
-        if (!supplier) throw new Error('Supplier not found');
-
-        const updatedSupplier = {
-            ...supplier,
-            ...data,
-            updatedAt: new Date().toISOString(),
-            synced: 0
-        };
-
-        await db.put('suppliers', updatedSupplier);
-        await logEvent('SUPPLIER_UPDATED', updatedSupplier);
-        
-        return updatedSupplier;
-    },
-
-    // --- PURCHASE ORDERS ---
-    async getPurchaseOrders(): Promise<PurchaseOrder[]> {
-        const db = await getDB();
-        return db.getAll('purchase_orders');
-    },
-
-    async getPurchaseOrder(id: string): Promise<PurchaseOrder | undefined> {
-        const db = await getDB();
-        return db.get('purchase_orders', id);
-    },
-
-    async createPurchaseOrder(order: Omit<PurchaseOrder, 'id' | 'orderNumber' | 'createdAt' | 'updatedAt' | 'synced'>): Promise<PurchaseOrder> {
-        const db = await getDB();
-        const id = `PO-${Date.now()}`;
-        const orderNumber = `PO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
-        const now = new Date().toISOString();
-        
-        const newOrder: PurchaseOrder = {
-            ...order,
-            id,
-            orderNumber,
-            createdAt: now,
-            updatedAt: now,
-            synced: 0
-        };
-
-        await db.add('purchase_orders', newOrder);
-        await logEvent('PURCHASE_ORDER_CREATED', newOrder);
-        
-        return newOrder;
-    },
-
-    async updatePurchaseOrder(id: string, data: Partial<PurchaseOrder>): Promise<PurchaseOrder> {
-        const db = await getDB();
-        const order = await db.get('purchase_orders', id);
-        if (!order) throw new Error('Purchase order not found');
-
-        const updatedOrder = {
-            ...order,
-            ...data,
-            updatedAt: new Date().toISOString(),
-            synced: 0
-        };
-
-        await db.put('purchase_orders', updatedOrder);
-        await logEvent('PURCHASE_ORDER_UPDATED', updatedOrder);
-        
-        return updatedOrder;
-    },
-
-    async receivePurchaseOrder(id: string, receivedItems: { productId: string; receivedQuantity: number }[], createdBy: string): Promise<PurchaseOrder> {
-        const db = await getDB();
-        const order = await db.get('purchase_orders', id);
-        if (!order) throw new Error('Purchase order not found');
-
-        // Update order items with received quantities
-        const updatedItems = order.items.map(item => {
-            const received = receivedItems.find(r => r.productId === item.productId);
-            return {
-                ...item,
-                receivedQuantity: received?.receivedQuantity || 0
-            };
-        });
-
-        // Update stock for received items
-        for (const received of receivedItems) {
-            const item = order.items.find(i => i.productId === received.productId);
-            if (item && received.receivedQuantity > 0) {
-                await this.updateStock(
-                    received.productId,
-                    received.receivedQuantity,
-                    'PURCHASE',
-                    item.unitPrice,
-                    createdBy,
-                    id,
-                    'PURCHASE_ORDER'
+    // --- SALES ---
+    async getSales(startDate?: string, endDate?: string): Promise<Sale[]> {
+        try {
+            let q = query(collection(db, 'sales'), orderBy('saleDate', 'desc'));
+            if (startDate && endDate) {
+                // Note: This compound query requires an index in Firestore.
+                // We will attempt it, but if it fails, we fall back to local filtering.
+                q = query(collection(db, 'sales'),
+                    where('saleDate', '>=', startDate),
+                    where('saleDate', '<=', endDate),
+                    orderBy('saleDate', 'desc')
                 );
             }
+
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                const sales: Sale[] = [];
+                const localDb = await getDB();
+                const tx = localDb.transaction('sales', 'readwrite');
+
+                snapshot.forEach(doc => {
+                    const data = doc.data() as any;
+                    const sale: Sale = {
+                        id: data.id,
+                        clientId: data.clientId,
+                        items: data.items,
+                        subtotal: data.subtotal,
+                        taxRate: data.taxRate,
+                        taxAmount: data.taxAmount,
+                        total: data.total,
+                        paymentMethod: data.paymentMethod,
+                        paymentStatus: data.paymentStatus,
+                        saleDate: data.saleDate,
+                        staffId: data.staffId,
+                        notes: data.notes,
+                        createdAt: data.createdAt,
+                        updatedAt: data.updatedAt,
+                        synced: 1
+                    };
+                    sales.push(sale);
+                    tx.store.put(sale);
+                });
+                await tx.done;
+                return sales;
+            }
+        } catch (error) {
+            console.error('Firebase getSales error (offline or missing index?):', error);
         }
 
-        // Check if all items are received
-        const allReceived = updatedItems.every(item => item.receivedQuantity === item.quantity);
-        const status = allReceived ? 'RECEIVED' : 'PARTIAL';
+        const dbLocal = await getDB();
+        let sales = await dbLocal.getAll('sales');
 
-        const updatedOrder: PurchaseOrder = {
-            ...order,
-            items: updatedItems,
-            status,
-            actualDeliveryDate: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            synced: 0
-        };
-
-        await db.put('purchase_orders', updatedOrder);
-        await logEvent('PURCHASE_ORDER_RECEIVED', updatedOrder);
-        
-        return updatedOrder;
-    },
-
-    // --- INVENTORY TRANSACTIONS ---
-    async getInventoryTransactions(productId?: string, startDate?: string, endDate?: string): Promise<InventoryTransaction[]> {
-        const db = await getDB();
-        let transactions: InventoryTransaction[];
-
-        if (productId) {
-            transactions = await db.getAllFromIndex('inventory_transactions', 'by-product', productId);
-        } else {
-            transactions = await db.getAll('inventory_transactions');
-        }
-
-        // Filter by date range if provided
         if (startDate || endDate) {
-            transactions = transactions.filter(t => {
-                const date = new Date(t.createdAt);
+            sales = sales.filter(s => {
+                const date = new Date(s.saleDate);
                 if (startDate && date < new Date(startDate)) return false;
                 if (endDate && date > new Date(endDate)) return false;
                 return true;
             });
         }
 
-        return transactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        return sales.sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime());
     },
 
-    // --- SALES ---
     async createSale(sale: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'synced'>): Promise<Sale> {
-        const db = await getDB();
         const id = `SALE-${Date.now()}`;
         const now = new Date().toISOString();
-        
+
         const newSale: Sale = {
             ...sale,
             id,
             createdAt: now,
             updatedAt: now,
-            synced: 0
+            synced: 1
         };
 
-        await db.add('sales', newSale);
+        // 1. Create Sale in Firebase
+        try {
+            await setDoc(doc(db, 'sales', id), {
+                id,
+                clientId: sale.clientId || null,
+                items: sale.items,
+                subtotal: sale.subtotal,
+                taxRate: sale.taxRate,
+                taxAmount: sale.taxAmount,
+                total: sale.total,
+                paymentMethod: sale.paymentMethod,
+                paymentStatus: sale.paymentStatus,
+                saleDate: sale.saleDate,
+                staffId: sale.staffId,
+                notes: sale.notes || null,
+                createdAt: now,
+                updatedAt: now
+            });
 
-        // Update stock for sold items
+            // Update stock for sold items handled via updateStock loop below, but updateStock also talks to Firebase.
+            // This might cause double writes if we call updateStock which calls Firebase.
+            // Ideally should be a transaction. For now we will rely on updateStock's own logic.
+        } catch (error) {
+            console.error('Firebase createSale error:', error);
+            newSale.synced = 0;
+        }
+
+        // 2. Save Local
+        const dbLocal = await getDB();
+        await dbLocal.add('sales', newSale);
+
+        // 3. Update stock for sold items
         for (const item of sale.items) {
             await this.updateStock(
                 item.productId,
@@ -465,78 +580,6 @@ export const inventoryService = {
         }
 
         await logEvent('SALE_CREATED', newSale);
-        
         return newSale;
-    },
-
-    async getSales(startDate?: string, endDate?: string): Promise<Sale[]> {
-        const db = await getDB();
-        let sales = await db.getAll('sales');
-
-        // Filter by date range if provided
-        if (startDate || endDate) {
-            sales = sales.filter(s => {
-                const date = new Date(s.saleDate);
-                if (startDate && date < new Date(startDate)) return false;
-                if (endDate && date > new Date(endDate)) return false;
-                return true;
-            });
-        }
-
-        return sales.sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime());
-    },
-
-    // --- INVENTORY ANALYTICS ---
-    async getInventoryValue(): Promise<{ totalCost: number; totalValue: number; potentialProfit: number }> {
-        const db = await getDB();
-        const products = await db.getAll('products');
-        
-        let totalCost = 0;
-        let totalValue = 0;
-
-        products.forEach(product => {
-            if (product.isActive) {
-                totalCost += product.currentStock * product.costPrice;
-                totalValue += product.currentStock * product.unitPrice;
-            }
-        });
-
-        return {
-            totalCost,
-            totalValue,
-            potentialProfit: totalValue - totalCost
-        };
-    },
-
-    async getTopSellingProducts(limit: number = 10, startDate?: string, endDate?: string): Promise<any[]> {
-        const sales = await this.getSales(startDate, endDate);
-        const productSales = new Map<string, { quantity: number; revenue: number }>();
-
-        sales.forEach(sale => {
-            sale.items.forEach(item => {
-                const existing = productSales.get(item.productId) || { quantity: 0, revenue: 0 };
-                productSales.set(item.productId, {
-                    quantity: existing.quantity + item.quantity,
-                    revenue: existing.revenue + item.total
-                });
-            });
-        });
-
-        // Get product details
-        const db = await getDB();
-        const results = [];
-        
-        for (const [productId, sales] of productSales.entries()) {
-            const product = await db.get('products', productId);
-            if (product) {
-                results.push({
-                    product,
-                    quantitySold: sales.quantity,
-                    revenue: sales.revenue
-                });
-            }
-        }
-
-        return results.sort((a, b) => b.revenue - a.revenue).slice(0, limit);
     }
 };

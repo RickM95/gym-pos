@@ -145,11 +145,12 @@ export const reportService = {
     async getStats(): Promise<DashboardStats> {
         const db = await getDB();
 
-        // 1. Total Clients
-        const clients = await db.getAll('clients');
-        const totalClients = clients.length;
+        // 1. Total Clients (Using count for speed)
+        const totalClients = await db.count('clients');
 
         // 2. Active Subscriptions & Revenue
+        // Subscriptions usually need a scan to check dates, but we can optimize if we had an index.
+        // For now, let's at least optimize the Plan lookup.
         const subscriptions = await db.getAll('subscriptions');
         const plans = await db.getAll('plans');
         const planMap = new Map(plans.map(p => [p.id, p]));
@@ -167,18 +168,17 @@ export const reportService = {
 
                 const plan = planMap.get(sub.planId);
                 if (plan) {
-                    // Normalize to monthly revenue (30 days)
-                    // Revenue = (Price / Duration) * 30
                     const dailyRate = plan.price / plan.durationDays;
                     monthlyRevenue += dailyRate * 30;
                 }
             }
         });
 
-        // 3. Today's Checkins
-        const checkins = await db.getAll('checkins');
-        const todayStr = now.toDateString(); // "Wed Jan 14 2026"
-        const todaysCheckins = checkins.filter(c => new Date(c.timestamp).toDateString() === todayStr).length;
+        // 3. Today's Checkins (Optimized with Range)
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const range = IDBKeyRange.lowerBound(startOfToday.getTime());
+        const todaysCheckins = await db.countFromIndex('checkins', 'by-timestamp', range);
 
         return {
             totalClients,
@@ -224,15 +224,15 @@ export const reportService = {
 
     async generateFinancialData(startDate: string, endDate: string) {
         const db = await getDB();
-        
+
         // Get all subscriptions within date range
         const subscriptions = await db.getAll('subscriptions');
         const plans = await db.getAll('plans');
-        
+
         // Calculate revenue
         let totalRevenue = 0;
         const revenueByPlan: Record<string, number> = {};
-        
+
         subscriptions.forEach(sub => {
             const subDate = new Date(sub.startDate);
             if (subDate >= new Date(startDate) && subDate <= new Date(endDate)) {
@@ -257,7 +257,7 @@ export const reportService = {
         const db = await getDB();
         const clients = await db.getAll('clients');
         const subscriptions = await db.getAll('subscriptions');
-        
+
         const now = new Date();
         const activeMembers = subscriptions.filter(sub => {
             const endDate = new Date(sub.endDate);
@@ -281,7 +281,7 @@ export const reportService = {
     async generateAttendanceData(startDate: string, endDate: string) {
         const db = await getDB();
         const checkins = await db.getAll('checkins');
-        
+
         const filteredCheckins = checkins.filter(checkin => {
             const checkinDate = new Date(checkin.timestamp);
             return checkinDate >= new Date(startDate) && checkinDate <= new Date(endDate);
@@ -301,7 +301,7 @@ export const reportService = {
             hourCounts[hour] = (hourCounts[hour] || 0) + 1;
         });
 
-        const peakHour = Object.entries(hourCounts).reduce((a, b) => 
+        const peakHour = Object.entries(hourCounts).reduce((a, b) =>
             hourCounts[Number(a[0])] > hourCounts[Number(b[0])] ? a : b
         );
 
@@ -319,7 +319,7 @@ export const reportService = {
     async createTaxReport(reportData: Omit<TaxReport, 'id' | 'createdAt' | 'updatedAt' | 'synced'>): Promise<TaxReport> {
         const db = await getDB();
         const id = `TAX-${Date.now()}`;
-        
+
         const taxReport: TaxReport = {
             ...reportData,
             id,
@@ -330,7 +330,7 @@ export const reportService = {
 
         await db.add('tax_reports', taxReport);
         await logEvent('TAX_REPORT_CREATED', taxReport);
-        
+
         return taxReport;
     },
 
@@ -353,7 +353,7 @@ export const reportService = {
 
         await db.put('tax_reports', updatedReport);
         await logEvent('TAX_REPORT_UPDATED', updatedReport);
-        
+
         return updatedReport;
     },
 
@@ -372,7 +372,7 @@ export const reportService = {
 
         await db.put('tax_reports', updatedReport);
         await logEvent('TAX_REPORT_FILED', updatedReport);
-        
+
         return updatedReport;
     },
 
@@ -382,28 +382,28 @@ export const reportService = {
         const subscriptions = await db.getAll('subscriptions');
         const plans = await db.getAll('plans');
         const clients = await db.getAll('clients');
-        
+
         // Calculate revenue with IVA (15% in Honduras)
         const IVA_RATE = 0.15;
         let totalRevenue = 0;
         let ivaCollected = 0;
         let exemptRevenue = 0;
-        
+
         const clientTransactions: any[] = [];
-        
+
         subscriptions.forEach(sub => {
             const subDate = new Date(sub.startDate);
             if (subDate >= new Date(startDate) && subDate <= new Date(endDate)) {
                 const plan = plans.find(p => p.id === sub.planId);
                 const client = clients.find(c => c.id === sub.clientId);
-                
+
                 if (plan && client) {
                     const revenue = plan.price;
                     const iva = revenue * IVA_RATE;
-                    
+
                     totalRevenue += revenue;
                     ivaCollected += iva;
-                    
+
                     clientTransactions.push({
                         clientId: client.id,
                         clientName: client.name,
@@ -426,10 +426,10 @@ export const reportService = {
             'Marketing': 2000,
             'Other': 1000
         };
-        
+
         const totalExpenses = Object.values(expensesByCategory).reduce((sum, val) => sum + val, 0);
         const ivaPaid = totalExpenses * IVA_RATE;
-        
+
         return {
             period: { startDate, endDate },
             taxSummary: {
@@ -467,7 +467,7 @@ export const reportService = {
 
     async generateCSVReport(config: ReportConfig, data: any, startDate: string, endDate: string): Promise<Blob> {
         let csv = '';
-        
+
         switch (config.type) {
             case 'FINANCIAL':
                 csv = 'Date,Plan,Revenue\n';
@@ -476,7 +476,7 @@ export const reportService = {
                 });
                 csv += `\nTotal Revenue,,${data.totalRevenue}\n`;
                 break;
-                
+
             case 'MEMBERSHIP':
                 csv = 'Metric,Value\n';
                 csv += `Total Clients,${data.totalClients}\n`;
@@ -484,7 +484,7 @@ export const reportService = {
                 csv += `New Members,${data.newMembers}\n`;
                 csv += `Retention Rate,${data.retentionRate.toFixed(2)}%\n`;
                 break;
-                
+
             case 'ATTENDANCE':
                 csv = 'Date,Check-ins\n';
                 Object.entries(data.checkinsByDate || {}).forEach(([date, count]) => {
@@ -514,14 +514,14 @@ export const reportService = {
                     text += `  ${plan}: ${revenue} HNL\n`;
                 });
                 break;
-                
+
             case 'MEMBERSHIP':
                 text += `Total Clients: ${data.totalClients}\n`;
                 text += `Active Members: ${data.activeMembers}\n`;
                 text += `New Members: ${data.newMembers}\n`;
                 text += `Retention Rate: ${data.retentionRate.toFixed(2)}%\n`;
                 break;
-                
+
             case 'ATTENDANCE':
                 text += `Total Check-ins: ${data.totalCheckins}\n`;
                 text += `Average Daily: ${data.averageDaily.toFixed(2)}\n`;
@@ -595,11 +595,11 @@ export const reportService = {
         if (!report.institution.name) errors.push('Institution name is required');
         if (!report.institution.address) errors.push('Institution address is required');
         if (!report.institution.economicActivity) errors.push('Economic activity is required');
-        
+
         if (!report.taxSummary.totalRevenue && report.taxSummary.totalRevenue !== 0) {
             errors.push('Total revenue is required');
         }
-        
+
         if (!report.details.clientTransactions.length && !report.details.expenseTransactions.length) {
             errors.push('At least one transaction is required');
         }
@@ -619,13 +619,13 @@ export const reportService = {
         let declaration = `DECLARACIÓN TRIBUTARIA - SERVICIO DE ADMINISTRACIÓN DE RENTAS\n\n`;
         declaration += `PERÍODO: ${report.reportingPeriod.startDate} a ${report.reportingPeriod.endDate}\n`;
         declaration += `FECHA: ${new Date().toLocaleDateString('es-HN')}\n\n`;
-        
+
         declaration += `DATOS DEL CONTRIBUYENTE:\n`;
         declaration += `Nombre: ${report.institution.name}\n`;
         declaration += `RTN: ${report.institution.rtn}\n`;
         declaration += `Actividad Económica: ${report.institution.economicActivity}\n`;
         declaration += `Dirección: ${report.institution.address}\n\n`;
-        
+
         declaration += `RESUMEN FISCAL:\n`;
         declaration += `Ingresos Totales: L ${report.taxSummary.totalRevenue.toFixed(2)}\n`;
         declaration += `Ingresos Gravables: L ${report.taxSummary.taxableRevenue.toFixed(2)}\n`;
@@ -633,12 +633,12 @@ export const reportService = {
         declaration += `IVA Cobrado: L ${report.taxSummary.ivaCollected.toFixed(2)}\n`;
         declaration += `IVA Pagado: L ${report.taxSummary.ivaPaid.toFixed(2)}\n`;
         declaration += `Impuesto Neto: L ${report.taxSummary.netTax.toFixed(2)}\n\n`;
-        
+
         declaration += `DETALLES DE TRANSACCIONES:\n`;
         report.details.clientTransactions.forEach((trans, index) => {
             declaration += `${index + 1}. ${trans.clientName} - L ${trans.amount.toFixed(2)} (IVA: L ${trans.iva.toFixed(2)})\n`;
         });
-        
+
         return declaration;
     }
 };

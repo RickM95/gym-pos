@@ -5,9 +5,11 @@ import Link from "next/link";
 import { subscriptionService, Plan } from "@/lib/services/subscriptionService";
 import { Plus, ArrowLeft, Trash2 } from "lucide-react";
 import Navigation from "@/components/navigation/Navigation";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 export default function PlansPage() {
     const [plans, setPlans] = useState<Plan[]>([]);
+    const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [newPlan, setNewPlan] = useState({ name: "", price: "", durationDays: "30" });
 
@@ -16,8 +18,13 @@ export default function PlansPage() {
     }, []);
 
     const loadPlans = async () => {
-        const data = await subscriptionService.getPlans();
-        setPlans(data);
+        setLoading(true);
+        try {
+            const data = await subscriptionService.getPlans();
+            setPlans(data);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -96,26 +103,30 @@ export default function PlansPage() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {plans.map(plan => (
-                                <div key={plan.id} className="bg-gray-800 p-6 rounded-xl border border-gray-700 flex flex-col justify-between">
-                                    <div>
-                                        <h3 className="text-2xl font-bold">{plan.name}</h3>
-                                        <p className="text-gray-400 mt-2">{plan.durationDays} Days Access</p>
+                        {loading ? (
+                            <LoadingSpinner message="Loading Plan Options..." />
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {plans.map(plan => (
+                                    <div key={plan.id} className="bg-gray-800 p-6 rounded-xl border border-gray-700 flex flex-col justify-between">
+                                        <div>
+                                            <h3 className="text-2xl font-bold">{plan.name}</h3>
+                                            <p className="text-gray-400 mt-2">{plan.durationDays} Days Access</p>
+                                        </div>
+                                        <div className="mt-6 flex justify-between items-end">
+                                            <span className="text-3xl font-bold text-blue-400">${plan.price}</span>
+                                            <span className="text-xs text-gray-500 uppercase tracking-wider">ID: {plan.id.substring(0, 4)}</span>
+                                        </div>
                                     </div>
-                                    <div className="mt-6 flex justify-between items-end">
-                                        <span className="text-3xl font-bold text-blue-400">${plan.price}</span>
-                                        <span className="text-xs text-gray-500 uppercase tracking-wider">ID: {plan.id.substring(0, 4)}</span>
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
 
-                            {plans.length === 0 && !showForm && (
-                                <div className="col-span-full text-center py-10 text-gray-500">
-                                    No plans found. Create one to get started.
-                                </div>
-                            )}
-                        </div>
+                                {plans.length === 0 && !showForm && (
+                                    <div className="col-span-full text-center py-10 text-gray-500">
+                                        No plans found. Create one to get started.
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

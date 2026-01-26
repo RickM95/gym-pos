@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { syncService } from "@/lib/services/syncService";
-import { Cloud, CloudOff, RefreshCw, Check } from "lucide-react";
+import { Cloud, CloudOff, Check } from "lucide-react";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useOffline } from "@/components/providers/OfflineProvider";
 
 export default function SyncIndicator() {
@@ -50,9 +51,8 @@ export default function SyncIndicator() {
 
     if (isSyncing) {
         return (
-            <div className="flex items-center gap-2 text-blue-400 text-sm animate-pulse">
-                <RefreshCw size={16} className="animate-spin" />
-                <span>Syncing...</span>
+            <div className="flex items-center gap-2">
+                <LoadingSpinner size="sm" message="Syncing..." />
             </div>
         );
     }

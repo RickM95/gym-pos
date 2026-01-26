@@ -1,6 +1,8 @@
 import { getDB } from '../db';
 import { clientService } from './clientService';
 import { logEvent } from '../sync';
+import { db } from '../firebase';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 export interface ClientAuth {
     clientId: string;
@@ -25,7 +27,6 @@ export interface ClientCredentials {
     authMethod: 'password' | 'pin' | 'biometric';
 }
 
-// Simple password hashing (in production, use bcrypt or similar)
 const hashPassword = async (password: string): Promise<string> => {
     const encoder = new TextEncoder();
     const data = encoder.encode(password);
@@ -41,27 +42,9 @@ const verifyPassword = async (password: string, hashedPassword: string): Promise
 
 export const clientAuthService = {
     async createClientAuth(clientId: string, password: string, pin: string): Promise<ClientAuth> {
-        const db = await getDB();
-        
         // Verify client exists
         const client = await clientService.getClient(clientId);
-        if (!client) {
-            throw new Error('Client not found');
-        }
-
-        // Check if auth already exists
-        const existingAuth = await db.get('client_auth', clientId);
-        if (existingAuth) {
-            throw new Error('Client authentication already exists');
-        }
-
-        // Validate PIN (4-6 digits) - allow 4 digits minimum
-        if (!/^\d{4,6}$/.test(pin)) {
-            throw new Error('PIN must be 4-6 digits');
-        }
-        if (pin.length < 4) {
-            throw new Error('PIN must be at least 4 digits');
-        }
+        if (!client) throw new Error('Client not found');
 
         const hashedPassword = await hashPassword(password);
         const now = new Date().toISOString();
@@ -76,146 +59,136 @@ export const clientAuthService = {
             isLocked: false
         };
 
-        await db.put('client_auth', clientAuth);
-        await logEvent('CLIENT_AUTH_CREATED' as const, { clientId });
+        // 1. Sync to Firebase
+        try {
+            await setDoc(doc(db, 'client_auth', clientId), {
+                clientId,
+                password: hashedPassword,
+                pin,
+                updatedAt: now,
+                createdAt: now,
+                loginAttempts: 0,
+                isLocked: false
+            });
+        } catch (error) {
+            console.error('Firebase client auth sync error:', error);
+        }
+
+        // 2. Save Local
+        const dbLocal = await getDB();
+        await dbLocal.put('client_auth', clientAuth);
+        await logEvent('CLIENT_AUTH_CREATED', { clientId });
 
         return clientAuth;
     },
 
     async authenticateClient(credentials: ClientCredentials): Promise<{ client: any; auth: ClientAuth } | null> {
-        const db = await getDB();
-        const auth = await db.get('client_auth', credentials.clientId);
-        
-        if (!auth) {
-            throw new Error('Client authentication not found');
+        let auth: ClientAuth | null = null;
+
+        // 1. Try Firebase first
+        try {
+            const docRef = doc(db, 'client_auth', credentials.clientId);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data() as any;
+                auth = {
+                    clientId: data.clientId,
+                    password: data.password,
+                    pin: data.pin,
+                    biometricData: data.biometricData,
+                    lastLogin: data.lastLogin,
+                    loginAttempts: data.loginAttempts,
+                    isLocked: data.isLocked,
+                    lockUntil: data.lockUntil,
+                    createdAt: data.createdAt,
+                    updatedAt: data.updatedAt
+                };
+            }
+        } catch (error) {
+            console.error('Firebase auth lookup error:', error);
         }
 
-        // Check if account is locked
+        // 2. Local fallback if not found or error
+        if (!auth) {
+            const dbLocal = await getDB();
+            auth = await dbLocal.get('client_auth', credentials.clientId);
+        }
+
+        if (!auth) throw new Error('Client authentication not found');
+
+        // Check lock
         if (auth.isLocked && auth.lockUntil) {
-            const lockUntil = new Date(auth.lockUntil);
-            if (lockUntil > new Date()) {
+            if (new Date(auth.lockUntil) > new Date()) {
                 throw new Error('Account temporarily locked. Please try again later.');
-            } else {
-                // Lock expired, reset
-                auth.isLocked = false;
-                auth.loginAttempts = 0;
-                await db.put('client_auth', auth);
             }
         }
 
         let isValid = false;
-
-        switch (credentials.authMethod) {
-            case 'password':
-                if (credentials.password) {
-                    isValid = await verifyPassword(credentials.password, auth.password);
-                }
-                break;
-            case 'pin':
-                if (credentials.pin) {
-                    isValid = credentials.pin === auth.pin;
-                }
-                break;
-            case 'biometric':
-                // In a real implementation, this would interface with WebAuthn or similar
-                // For now, we'll just check if biometric data exists
-                isValid = !!(auth.biometricData?.fingerprint || auth.biometricData?.faceId);
-                break;
+        if (credentials.authMethod === 'password' && credentials.password) {
+            isValid = await verifyPassword(credentials.password, auth.password);
+        } else if (credentials.authMethod === 'pin' && credentials.pin) {
+            isValid = credentials.pin === auth.pin;
         }
 
+        const now = new Date().toISOString();
         if (!isValid) {
-            // Increment login attempts
-            auth.loginAttempts += 1;
-            
-            // Lock account after 5 failed attempts for 15 minutes
-            if (auth.loginAttempts >= 5) {
-                auth.isLocked = true;
-                auth.lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-            }
-            
-            await db.put('client_auth', auth);
-            await logEvent('CLIENT_LOGIN_FAILED', { 
-                clientId: credentials.clientId, 
-                attempts: auth.loginAttempts,
-                authMethod: credentials.authMethod 
-            });
-            
+            const attempts = auth.loginAttempts + 1;
+            const isLocked = attempts >= 5;
+            const lockUntil = isLocked ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
+
+            try {
+                await updateDoc(doc(db, 'client_auth', auth.clientId), {
+                    loginAttempts: attempts,
+                    isLocked,
+                    lockUntil,
+                    updatedAt: now
+                });
+            } catch (e) { console.error('Firebase auth update failed', e); }
+
+            const dbLocal = await getDB();
+            await dbLocal.put('client_auth', { ...auth, loginAttempts: attempts, isLocked, lockUntil: lockUntil || undefined });
             throw new Error('Invalid credentials');
         }
 
-        // Reset login attempts on successful login
-        auth.loginAttempts = 0;
-        auth.isLocked = false;
-        auth.lockUntil = undefined;
-        auth.lastLogin = new Date().toISOString();
-        auth.updatedAt = new Date().toISOString();
+        // Success
+        try {
+            await updateDoc(doc(db, 'client_auth', auth.clientId), {
+                loginAttempts: 0,
+                isLocked: false,
+                lockUntil: null,
+                lastLogin: now,
+                updatedAt: now
+            });
+        } catch (e) { console.error('Firebase auth success update failed', e); }
 
-        await db.put('client_auth', auth);
+        const dbLocal = await getDB();
+        await dbLocal.put('client_auth', { ...auth, loginAttempts: 0, isLocked: false, lastLogin: now, updatedAt: now });
 
         const client = await clientService.getClient(credentials.clientId);
-        if (!client) {
-            throw new Error('Client not found');
-        }
+        if (!client) throw new Error('Client not found');
 
-        await logEvent('CLIENT_LOGIN_SUCCESS', { 
-            clientId: credentials.clientId,
-            authMethod: credentials.authMethod 
-        });
-
-        return { client, auth };
+        return { client, auth: { ...auth, loginAttempts: 0, isLocked: false, lastLogin: now, updatedAt: now } };
     },
 
-    async updateClientAuth(clientId: string, updates: {
-        password?: string;
-        pin?: string;
-        biometricData?: ClientAuth['biometricData'];
-    }): Promise<ClientAuth> {
-        const db = await getDB();
-        const auth = await db.get('client_auth', clientId);
-        
-        if (!auth) {
-            throw new Error('Client authentication not found');
+    async updateClientAuth(clientId: string, updates: { password?: string; pin?: string; }): Promise<void> {
+        const now = new Date().toISOString();
+        const dbUpdates: any = { updatedAt: now };
+
+        if (updates.password) dbUpdates.password = await hashPassword(updates.password);
+        if (updates.pin) dbUpdates.pin = updates.pin;
+
+        try {
+            await updateDoc(doc(db, 'client_auth', clientId), dbUpdates);
+        } catch (e) { console.error('Firebase update auth failed', e); }
+
+        const dbLocal = await getDB();
+        const auth = await dbLocal.get('client_auth', clientId);
+        if (auth) {
+            if (updates.password) auth.password = dbUpdates.password;
+            if (updates.pin) auth.pin = updates.pin;
+            auth.updatedAt = now;
+            await dbLocal.put('client_auth', auth);
         }
-
-        const updatedAuth = { ...auth };
-
-        if (updates.password) {
-            updatedAuth.password = await hashPassword(updates.password);
-        }
-
-        if (updates.pin) {
-            if (!/^\d{4,6}$/.test(updates.pin)) {
-                throw new Error('PIN must be 4-6 digits');
-            }
-            updatedAuth.pin = updates.pin;
-        }
-
-        if (updates.biometricData) {
-            updatedAuth.biometricData = updates.biometricData;
-        }
-
-        updatedAuth.updatedAt = new Date().toISOString();
-
-        await db.put('client_auth', updatedAuth);
-        await logEvent('CLIENT_AUTH_UPDATED', { clientId });
-
-        return updatedAuth;
-    },
-
-    async getClientAuth(clientId: string): Promise<ClientAuth | null> {
-        const db = await getDB();
-        const result = await db.get('client_auth', clientId);
-        return result || null;
-    },
-
-    async hasClientAuth(clientId: string): Promise<boolean> {
-        const auth = await this.getClientAuth(clientId);
-        return !!auth;
-    },
-
-    async removeClientAuth(clientId: string): Promise<void> {
-        const db = await getDB();
-        await db.delete('client_auth', clientId);
-        await logEvent('CLIENT_AUTH_REMOVED', { clientId });
     }
 };

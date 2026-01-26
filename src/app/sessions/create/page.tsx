@@ -76,7 +76,7 @@ export default function CreateSessionPage() {
             logs: flatLogs
         });
 
-        router.push(`/clients/${selectedClient.id}`);
+        router.push(`/clients/view?id=${selectedClient.id}`);
     };
 
     return (

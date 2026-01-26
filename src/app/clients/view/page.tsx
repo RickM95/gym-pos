@@ -11,9 +11,11 @@ import { ProfilePicture } from "@/components/ui/ProfilePicture";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useGlobalNotifications } from "@/components/providers/GlobalNotificationProvider";
 
-export default function ClientDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-    // Unwrap params using React.use()
-    const { id } = use(params);
+import { useSearchParams } from "next/navigation";
+
+export default function ClientDetailsPage() {
+    const searchParams = useSearchParams();
+    const id = searchParams.get('id');
 
     const { user } = useAuth();
     const { addNotification } = useGlobalNotifications();
@@ -42,12 +44,12 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
                 isActive: false
             };
         }
-        
+
         const now = new Date();
         const endDate = new Date(activeSub.endDate);
         const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         const isActive = daysLeft > 0;
-        
+
         if (!isActive) {
             return {
                 status: "Expired",
@@ -80,6 +82,7 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
     }, [id]);
 
     const loadData = async () => {
+        if (!id) return;
         try {
             const [c, p] = await Promise.all([
                 clientService.getClient(id),
@@ -105,13 +108,18 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
         }
     };
 
-const handleAssign = async (planId: string) => {
+    const handleAssign = async (planId: string) => {
         if (!client) return;
         if (!confirm("Assign this plan? Use this only if payment is collected.")) return;
 
         setAssigning(true);
         try {
-            await subscriptionService.assignSubscription(client.id, planId);
+            const plan = plans.find(p => p.id === planId);
+            await subscriptionService.assignSubscription(client.id, planId, {
+                method: 'CASH',
+                amount: plan?.price || 0,
+                adminName: user?.name || 'Admin'
+            });
             await loadData(); // Reload to see new sub
             addNotification("success", "Subscription assigned successfully!", 3000);
         } catch (e) {
@@ -136,7 +144,7 @@ const handleAssign = async (planId: string) => {
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 text-center">
                         <div className="flex justify-center mb-4">
-                            <ProfilePicture 
+                            <ProfilePicture
                                 currentPhoto={client.photoUrl}
                                 onPhotoChange={async (photoUrl) => {
                                     if (canEditPhotos && photoUrl !== undefined) {
@@ -269,17 +277,16 @@ const handleAssign = async (planId: string) => {
                                     const now = new Date();
                                     const endDate = new Date(sub.endDate);
                                     const isExpired = endDate < now;
-                                    
+
                                     return (
-                                        <div 
-                                            key={sub.id} 
-                                            className={`p-3 rounded-lg border ${
-                                                isActive 
-                                                    ? 'bg-green-900/20 border-green-500/50' 
-                                                    : isExpired 
-                                                        ? 'bg-gray-900 border-gray-700' 
-                                                        : 'bg-gray-900 border-gray-700'
-                                            }`}
+                                        <div
+                                            key={sub.id}
+                                            className={`p-3 rounded-lg border ${isActive
+                                                ? 'bg-green-900/20 border-green-500/50'
+                                                : isExpired
+                                                    ? 'bg-gray-900 border-gray-700'
+                                                    : 'bg-gray-900 border-gray-700'
+                                                }`}
                                         >
                                             <div className="flex justify-between items-start">
                                                 <div>

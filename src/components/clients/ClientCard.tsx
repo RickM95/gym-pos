@@ -10,6 +10,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { ProfilePicture } from "@/components/ui/ProfilePicture";
 import { useGlobalNotifications } from "@/components/providers/GlobalNotificationProvider";
 import { Check, X } from "lucide-react";
+import LoadingSpinner from "../ui/LoadingSpinner";
 
 interface ClientCardProps {
     client: Client;
@@ -219,7 +220,7 @@ export const ClientCard = ({ client, onUpdate }: ClientCardProps) => {
                 </div>
 
                 <div className="flex-1">
-                    <Link href={`/clients/${client.id}`} className="hover:underline">
+                    <Link href={`/clients/view?id=${client.id}`} className="hover:underline">
                         <h3 className="text-xl font-bold text-white mb-3">{client.name}</h3>
                     </Link>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
@@ -308,7 +309,7 @@ export const ClientCard = ({ client, onUpdate }: ClientCardProps) => {
                     <div className="bg-gray-900 p-8 rounded-2xl border border-gray-700 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in duration-200">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-2xl font-bold text-white flex items-center gap-3">
-                                <RefreshCw className={`${renewing ? 'animate-spin' : ''} text-blue-500`} size={24} />
+                                {renewing && <LoadingSpinner message="Extending..." />}
                                 {renewalStep === 'SELECT_PLAN' && "Select Plan"}
                                 {renewalStep === 'PAYMENT_METHOD' && "Payment Method"}
                                 {renewalStep === 'PAYMENT_DETAILS' && "Payment Details"}
@@ -541,7 +542,7 @@ export const ClientCard = ({ client, onUpdate }: ClientCardProps) => {
                                         disabled={renewing || ((paymentMethod === 'TRANSFER' || paymentMethod === 'POS') && !paymentReference)}
                                         className="flex-[2] bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition flex items-center justify-center gap-2 disabled:opacity-50"
                                     >
-                                        {renewing ? <RefreshCw className="animate-spin" size={20} /> : <Check size={20} />}
+                                        {renewing ? <LoadingSpinner size="xs" /> : <Check size={20} />}
                                         Confirm & Activate
                                     </button>
                                 </div>

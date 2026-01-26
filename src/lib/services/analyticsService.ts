@@ -4,8 +4,10 @@ import { logEvent } from '../sync';
 export interface Expense {
     id: string;
     description: string;
-    category: 'RENT' | 'UTILITIES' | 'SALARIES' | 'EQUIPMENT' | 'MARKETING' | 'SUPPLIES' | 'MAINTENANCE' | 'OTHER';
+    category: 'RENT' | 'UTILITIES' | 'SALARIES' | 'EQUIPMENT' | 'MARKETING' | 'SUPPLIES' | 'MAINTENANCE' | 'LOAN' | 'OTHER';
     amount: number;
+    originalAmount?: number; // For LOAN category
+    interestRate?: number;    // For LOAN category (percentage)
     date: string;
     vendor?: string;
     invoiceNumber?: string;
@@ -61,19 +63,23 @@ export const analyticsService = {
     // --- EXPENSES ---
     async getExpenses(startDate?: string, endDate?: string, category?: string): Promise<Expense[]> {
         const db = await getDB();
-        let expenses = await db.getAll('expenses');
+        let expenses: Expense[] = [];
 
-        // Filter by date range if provided
-        if (startDate || endDate) {
-            expenses = expenses.filter(e => {
-                const date = new Date(e.date);
-                if (startDate && date < new Date(startDate)) return false;
-                if (endDate && date > new Date(endDate)) return false;
-                return true;
-            });
+        // Optimize: Use indexed query if dates are provided
+        if (startDate && endDate) {
+            const range = IDBKeyRange.bound(startDate, endDate);
+            expenses = await db.getAllFromIndex('expenses', 'by-date', range);
+        } else if (startDate) {
+            const range = IDBKeyRange.lowerBound(startDate);
+            expenses = await db.getAllFromIndex('expenses', 'by-date', range);
+        } else if (endDate) {
+            const range = IDBKeyRange.upperBound(endDate);
+            expenses = await db.getAllFromIndex('expenses', 'by-date', range);
+        } else {
+            expenses = await db.getAll('expenses');
         }
 
-        // Filter by category if provided
+        // Filter by category if provided (not indexed for now, but usually smaller set)
         if (category) {
             expenses = expenses.filter(e => e.category === category);
         }
@@ -85,7 +91,7 @@ export const analyticsService = {
         const db = await getDB();
         const id = `EXP-${Date.now()}`;
         const now = new Date().toISOString();
-        
+
         const newExpense: Expense = {
             ...expense,
             id,
@@ -96,7 +102,7 @@ export const analyticsService = {
 
         await db.add('expenses', newExpense);
         await logEvent('EXPENSE_CREATED', newExpense);
-        
+
         return newExpense;
     },
 
@@ -114,8 +120,24 @@ export const analyticsService = {
 
         await db.put('expenses', updatedExpense);
         await logEvent('EXPENSE_UPDATED', updatedExpense);
-        
+
         return updatedExpense;
+    },
+
+    /**
+     * Calculates the current debt for a specific loan based on payments made.
+     * Debt = (Original Amount * (1 + Interest Rate/100)) - Total Payments
+     */
+    async calculateLoanDebt(description: string, originalAmount: number, interestRate: number): Promise<number> {
+        const db = await getDB();
+        // Get all expenses matching this description (to track payments)
+        const expenses = await db.getAll('expenses');
+        const payments = expenses
+            .filter(e => e.category === 'LOAN' && e.description === description)
+            .reduce((sum, e) => sum + e.amount, 0);
+
+        const totalWithInterest = originalAmount * (1 + (interestRate / 100));
+        return Math.max(0, totalWithInterest - payments);
     },
 
     // --- REVENUE ANALYTICS ---
@@ -129,11 +151,11 @@ export const analyticsService = {
 
     async calculateRevenueAnalytics(date: string, periodType: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'): Promise<RevenueAnalytics> {
         const db = await getDB();
-        
+
         // Calculate date range based on period type
         const endDate = new Date(date);
         const startDate = new Date(date);
-        
+
         switch (periodType) {
             case 'DAILY':
                 startDate.setHours(0, 0, 0, 0);
@@ -160,7 +182,7 @@ export const analyticsService = {
         const subscriptions = await db.getAll('subscriptions');
         const plans = await db.getAll('plans');
         const sales = await db.getAll('sales');
-        const expenses = await db.getAll('expenses');
+        const expenses: Expense[] = await db.getAll('expenses');
         const clients = await db.getAll('clients');
         const checkins = await db.getAll('checkins');
 
@@ -248,7 +270,7 @@ export const analyticsService = {
         const subscriptions = await db.getAll('subscriptions');
         const plans = await db.getAll('plans');
         const sales = await db.getAll('sales');
-        const expenses = await db.getAll('expenses');
+        const expenses: Expense[] = await db.getAll('expenses');
         const clients = await db.getAll('clients');
         const products = await db.getAll('products');
 
@@ -338,7 +360,7 @@ export const analyticsService = {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - days);
 
-        const filteredCheckins = checkins.filter(c => 
+        const filteredCheckins = checkins.filter(c =>
             new Date(c.timestamp) >= cutoffDate
         );
 
@@ -357,13 +379,13 @@ export const analyticsService = {
             const date = new Date(checkin.timestamp);
             const hour = date.getHours();
             const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getDay()];
-            
+
             hourCounts[hour]++;
             dayCounts[dayName]++;
         });
 
         const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
-        const peakDay = Object.entries(dayCounts).reduce((a, b) => 
+        const peakDay = Object.entries(dayCounts).reduce((a, b) =>
             dayCounts[a[0]] > dayCounts[b[0]] ? a : b
         )[0];
 
@@ -394,30 +416,30 @@ export const analyticsService = {
 
         // Calculate retention by cohort (month of joining)
         const cohorts = new Map<string, { joined: number; active: number; churned: number }>();
-        
+
         clients.forEach(client => {
             const joinMonth = new Date(client.updatedAt).toISOString().slice(0, 7); // YYYY-MM
             const cohort = cohorts.get(joinMonth) || { joined: 0, active: 0, churned: 0 };
             cohort.joined++;
-            
+
             // Check if still active
-            const activeSubscription = subscriptions.find(sub => 
-                sub.clientId === client.id && 
+            const activeSubscription = subscriptions.find(sub =>
+                sub.clientId === client.id &&
                 new Date(sub.endDate) > new Date()
             );
-            
+
             if (activeSubscription) {
                 cohort.active++;
             } else {
                 cohort.churned++;
             }
-            
+
             cohorts.set(joinMonth, cohort);
         });
 
         // Calculate overall retention rate
         const totalMembers = clients.length;
-        const activeMembers = subscriptions.filter(sub => 
+        const activeMembers = subscriptions.filter(sub =>
             new Date(sub.endDate) > new Date()
         ).length;
         const overallRetentionRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
@@ -442,7 +464,7 @@ export const analyticsService = {
         const db = await getDB();
         const subscriptions = await db.getAll('subscriptions');
         const plans = await db.getAll('plans');
-        const expenses = await db.getAll('expenses');
+        const expenses: Expense[] = await db.getAll('expenses');
 
         // Calculate average monthly revenue and expenses
         const now = new Date();
@@ -466,7 +488,7 @@ export const analyticsService = {
 
             // Average monthly expenses
             const avgMonthlyExpenses = expenses.reduce((sum, e) => sum + e.amount, 0) / Math.max(1, 12);
-            
+
             // Add seasonal adjustments (basic example)
             const seasonalMultiplier = this.getSeasonalMultiplier(projectionDate.getMonth());
             projectedRevenue *= seasonalMultiplier;

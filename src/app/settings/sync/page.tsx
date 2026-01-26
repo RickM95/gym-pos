@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getDB } from "@/lib/db";
 import { syncService } from "@/lib/services/syncService";
 import { ArrowLeft, RefreshCw, Trash2, Database } from "lucide-react";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { SyncEvent } from "@/lib/sync";
 
 export default function SyncSettingsPage() {
@@ -58,7 +59,7 @@ export default function SyncSettingsPage() {
                             disabled={loading}
                             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
                         >
-                            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+                            {loading ? <LoadingSpinner size="xs" /> : <RefreshCw size={18} />}
                             Force Sync
                         </button>
                         <button

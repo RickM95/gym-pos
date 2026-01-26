@@ -33,7 +33,10 @@ export type EventType =
     | 'PURCHASE_ORDER_RECEIVED'
     | 'SALE_CREATED'
     | 'EXPENSE_CREATED'
-    | 'EXPENSE_UPDATED';
+    | 'EXPENSE_UPDATED'
+    | 'RECURRING_CONFIG_CREATED'
+    | 'RECURRING_CONFIG_UPDATED'
+    | 'RECURRING_CONFIG_DELETED';
 
 export interface SyncEvent {
     id: string;

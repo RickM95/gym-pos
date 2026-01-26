@@ -9,6 +9,8 @@ import { Camera, Upload, Check, User, Phone, FileText, CreditCard, ChevronDown, 
 import { CameraPreview } from "@/components/ui/CameraPreview";
 import { useAuth } from "@/components/auth/AuthProvider";
 import Link from "next/link";
+import LoadingSpinner from "../ui/LoadingSpinner";
+import { COUNTRIES } from "@/lib/constants/countries";
 
 export const AddClientForm = () => {
     const { user } = useAuth();
@@ -18,14 +20,13 @@ export const AddClientForm = () => {
     const [plans, setPlans] = useState<Plan[]>([]);
     const [showCamera, setShowCamera] = useState(false);
     const [showCountryDropdown, setShowCountryDropdown] = useState(false);
-    const [countries] = useState([
-        { code: 'HN', dial: '+504', flag: '🇭🇳', name: 'Honduras' },
-        { code: 'SV', dial: '+503', flag: '🇸🇻', name: 'El Salvador' },
-        { code: 'GT', dial: '+502', flag: '🇬🇹', name: 'Guatemala' },
-        { code: 'NI', dial: '+505', flag: '🇳🇮', name: 'Nicaragua' },
-        { code: 'CR', dial: '+506', flag: '🇨🇷', name: 'Costa Rica' },
-    ]);
-    const [selectedCountry, setSelectedCountry] = useState(countries[0]);
+    const [countrySearch, setCountrySearch] = useState("");
+    const [selectedCountry, setSelectedCountry] = useState(COUNTRIES.find(c => c.dial === '+504') || COUNTRIES[0]);
+
+    const filteredCountries = COUNTRIES.filter(c =>
+        c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+        c.dial.includes(countrySearch)
+    );
 
     // Form State
     const [formData, setFormData] = useState({
@@ -156,28 +157,45 @@ export const AddClientForm = () => {
                         >
                             <span className="flex items-center gap-2">
                                 <span className="text-xl">{selectedCountry.flag}</span>
-                                <span>{selectedCountry.code} {selectedCountry.dial}</span>
+                                <span>{selectedCountry.dial}</span>
                             </span>
                             <ChevronDown size={16} className={`text-gray-500 transition-transform ${showCountryDropdown ? 'rotate-180' : ''}`} />
                         </button>
 
                         {showCountryDropdown && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-20 max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
-                                {countries.map((c) => (
-                                    <button
-                                        key={c.code}
-                                        type="button"
-                                        onClick={() => {
-                                            setSelectedCountry(c);
-                                            setShowCountryDropdown(false);
-                                        }}
-                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 text-left text-white transition-colors border-b border-gray-800 last:border-0"
-                                    >
-                                        <span className="text-xl">{c.flag}</span>
-                                        <span className="flex-1">{c.name}</span>
-                                        <span className="text-gray-500 text-sm">{c.dial}</span>
-                                    </button>
-                                ))}
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-20 max-h-64 flex flex-col overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="p-2 border-b border-gray-800 bg-gray-900">
+                                    <input
+                                        type="text"
+                                        placeholder="Search country..."
+                                        value={countrySearch}
+                                        onChange={(e) => setCountrySearch(e.target.value)}
+                                        className="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-3 text-sm text-white focus:outline-none focus:border-blue-500"
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="overflow-y-auto custom-scrollbar flex-1 bg-gray-900">
+                                    {filteredCountries.length > 0 ? (
+                                        filteredCountries.map((c) => (
+                                            <button
+                                                key={`${c.name}-${c.dial}`}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedCountry(c);
+                                                    setShowCountryDropdown(false);
+                                                    setCountrySearch("");
+                                                }}
+                                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 text-left text-white transition-colors border-b border-gray-800 last:border-0"
+                                            >
+                                                <span className="text-xl">{c.flag}</span>
+                                                <span className="flex-1 text-sm truncate">{c.name}</span>
+                                                <span className="text-gray-500 text-xs">{c.dial}</span>
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="p-4 text-center text-gray-500 text-sm">No countries found</div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -463,11 +481,11 @@ export const AddClientForm = () => {
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/30 transition flex items-center justify-center gap-3 disabled:opacity-50"
                 >
                     {isLoading ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <LoadingSpinner message="Enlisting Spartan..." />
                     ) : (
                         <Check size={20} />
                     )}
-                    {isLoading ? 'Creating Client...' : 'Create Client Profile'}
+                    {isLoading ? '' : 'Create Client Profile'}
                 </button>
             </form>
         </div>

@@ -26,7 +26,7 @@ export default function GlobalError({
                     A fatal anomaly has been detected. The event has been logged for Tech Support (`9999`).
                 </p>
                 <button
-                    onClick={() => reset()}
+                    onClick={() => window.location.reload()}
                     className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-lg font-bold"
                 >
                     Attempt System Reset
