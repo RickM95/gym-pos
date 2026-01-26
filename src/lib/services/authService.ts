@@ -59,9 +59,16 @@ export const authService = {
     async initialize() {
         // Initialize default staff if cloud is empty
         try {
-            await staffService.initializeDefaultStaff();
+            // Add timeout to prevent hanging
+            const initPromise = staffService.initializeDefaultStaff();
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Initialization timeout')), 5000)
+            );
+
+            await Promise.race([initPromise, timeoutPromise]);
         } catch (error) {
             console.error('[authService] Initialization error:', error);
+            // Continue anyway - app can work with local storage
         }
     },
 
