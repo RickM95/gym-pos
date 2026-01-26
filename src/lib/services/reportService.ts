@@ -206,7 +206,9 @@ export const reportService = {
                 data = await this.generateAttendanceData(startDate, endDate);
                 break;
             case 'TAX':
-                throw new Error('Tax reports must be created through tax interface');
+                // Generate tax data with disclaimer
+                data = await this.calculateTaxData(startDate, endDate);
+                break;
         }
 
         // Generate report based on format
@@ -468,6 +470,13 @@ export const reportService = {
     async generateCSVReport(config: ReportConfig, data: any, startDate: string, endDate: string): Promise<Blob> {
         let csv = '';
 
+        // Add disclaimer for tax reports
+        if (config.type === 'TAX') {
+            csv += '⚠️ UNOFFICIAL DOCUMENT - FOR INFORMATIONAL PURPOSES ONLY ⚠️\n';
+            csv += 'NOT VALID FOR OFFICIAL TAX FILING OR LEGAL USE\n';
+            csv += 'Consult with a certified accountant for official tax filing\n\n';
+        }
+
         switch (config.type) {
             case 'FINANCIAL':
                 csv = 'Date,Plan,Revenue\n';
@@ -494,13 +503,43 @@ export const reportService = {
                 csv += `Average Daily,,${data.averageDaily.toFixed(2)}\n`;
                 csv += `Peak Hour,,${data.peakHour}\n`;
                 break;
+
+            case 'TAX':
+                csv += 'Tax Summary\n';
+                csv += 'Metric,Amount (HNL)\n';
+                csv += `Total Revenue,${data.taxSummary.totalRevenue.toFixed(2)}\n`;
+                csv += `Taxable Revenue,${data.taxSummary.taxableRevenue.toFixed(2)}\n`;
+                csv += `Exempt Revenue,${data.taxSummary.exemptRevenue.toFixed(2)}\n`;
+                csv += `IVA Collected,${data.taxSummary.ivaCollected.toFixed(2)}\n`;
+                csv += `IVA Paid,${data.taxSummary.ivaPaid.toFixed(2)}\n`;
+                csv += `Net Tax,${data.taxSummary.netTax.toFixed(2)}\n\n`;
+
+                csv += 'Client Transactions\n';
+                csv += 'Client Name,Amount (HNL),IVA (HNL),Date,Service\n';
+                data.details.clientTransactions.forEach((trans: any) => {
+                    csv += `${trans.clientName},${trans.amount.toFixed(2)},${trans.iva.toFixed(2)},${trans.date},${trans.service}\n`;
+                });
+
+                csv += '\n⚠️ DISCLAIMER: This is NOT an official tax declaration ⚠️\n';
+                break;
         }
 
         return new Blob([csv], { type: 'text/csv' });
     },
 
     generateTextReport(config: ReportConfig, data: any, startDate: string, endDate: string): string {
-        let text = `${config.name}\n`;
+        let text = '';
+
+        // Add disclaimer for tax reports
+        if (config.type === 'TAX') {
+            text += '═══════════════════════════════════════════════════════════════\n';
+            text += '                    ⚠️  UNOFFICIAL DOCUMENT  ⚠️\n';
+            text += '           FOR INFORMATIONAL PURPOSES ONLY\n';
+            text += '     NOT VALID FOR OFFICIAL TAX FILING OR LEGAL USE\n';
+            text += '═══════════════════════════════════════════════════════════════\n\n';
+        }
+
+        text += `${config.name}\n`;
         text += `Period: ${startDate} to ${endDate}\n`;
         text += `Generated: ${new Date().toLocaleString()}\n\n`;
 
@@ -530,6 +569,29 @@ export const reportService = {
                 Object.entries(data.checkinsByDate || {}).forEach(([date, count]) => {
                     text += `  ${date}: ${count} check-ins\n`;
                 });
+                break;
+
+            case 'TAX':
+                text += `TAX SUMMARY:\n`;
+                text += `Total Revenue: L ${data.taxSummary.totalRevenue.toFixed(2)}\n`;
+                text += `Taxable Revenue: L ${data.taxSummary.taxableRevenue.toFixed(2)}\n`;
+                text += `Exempt Revenue: L ${data.taxSummary.exemptRevenue.toFixed(2)}\n`;
+                text += `IVA Collected: L ${data.taxSummary.ivaCollected.toFixed(2)}\n`;
+                text += `IVA Paid: L ${data.taxSummary.ivaPaid.toFixed(2)}\n`;
+                text += `Net Tax: L ${data.taxSummary.netTax.toFixed(2)}\n\n`;
+
+                text += `CLIENT TRANSACTIONS:\n`;
+                data.details.clientTransactions.forEach((trans: any, index: number) => {
+                    text += `  ${index + 1}. ${trans.clientName} - L ${trans.amount.toFixed(2)} (IVA: L ${trans.iva.toFixed(2)})\n`;
+                });
+
+                text += `\n\n═══════════════════════════════════════════════════════════════\n`;
+                text += '                    ⚠️  DISCLAIMER  ⚠️\n';
+                text += '  This document is generated for internal review purposes only.\n';
+                text += '  It is NOT an official tax declaration and should NOT be\n';
+                text += '  submitted to SAR (Servicio de Administración de Rentas).\n';
+                text += '  Consult with a certified accountant for official tax filing.\n';
+                text += '═══════════════════════════════════════════════════════════════\n';
                 break;
         }
 
