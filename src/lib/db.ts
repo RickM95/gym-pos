@@ -907,15 +907,17 @@ export const initDB = () => {
                         const store = db.createObjectStore('academy_progress', { keyPath: 'id' });
                         store.createIndex('by-owner', 'ownerId');
                     }
-                    if (oldVersion < 10) {
-                        // Optimized Indexes for Dashboard
-                        const subStore = tx.objectStore('subscriptions');
-                        if (!subStore.indexNames.contains('by-active-plan')) {
-                            subStore.createIndex('by-active-plan', ['isActive', 'planId']);
-                        }
+                }
+
+                if (oldVersion < 10) {
+                    // Optimized Indexes for Dashboard
+                    const subStore = tx.objectStore('subscriptions');
+                    if (!subStore.indexNames.contains('by-active-plan')) {
+                        subStore.createIndex('by-active-plan', ['isActive', 'planId']);
                     }
-                },
-            });
+                }
+            },
+        });
     }
     return dbPromise;
 };
