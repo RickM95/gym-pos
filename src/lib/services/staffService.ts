@@ -201,13 +201,11 @@ export const staffService = {
                 console.warn("Could not check Firebase for default staff (offline or blocked), relying on local check");
             }
 
-            // 🛡️ SECURITY: Hash default PIN
-            const hashedPin = await cryptoUtils.hashCredential('0000');
-
+            // 🛡️ SECURITY: Pass plaintext PIN to createStaff which handles hashing
             const defaultStaff = [
                 {
                     name: 'Administrator',
-                    pin: hashedPin,
+                    pin: '0000', // Plaintext here, createStaff will hash it
                     role: 'ADMIN',
                     permissions: PERMISSION_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: true }), {} as Record<PermissionKey, boolean>)
                 }
@@ -215,6 +213,38 @@ export const staffService = {
 
             for (const staffData of defaultStaff) {
                 await this.createStaff(staffData);
+            }
+        }
+
+        // 🛡️ SECURITY: Migrate legacy plaintext PINs to hashed format
+        const allStaff = await localDb.getAll('staff');
+        for (const s of allStaff) {
+            if (s.pin && s.pin.length < 20) {
+                console.log(`[staffService] Migrating legacy PIN for ${s.name}`);
+                const hashed = await cryptoUtils.hashCredential(s.pin);
+                s.pin = hashed;
+                await localDb.put('staff', s);
+                try {
+                    await updateDoc(doc(db, 'profiles', s.id), { pin: hashed });
+                } catch (e) {
+                    console.warn(`[staffService] Firebase PIN migration skipped for ${s.name} (offline)`);
+                }
+            }
+        }
+
+        // 🛡️ SECURITY: Repair double-hashed Administrator PIN if necessary
+        const admin = allStaff.find(s => s.name === 'Administrator' && s.role === 'ADMIN');
+        if (admin) {
+            const singleHash = await cryptoUtils.hashCredential('0000');
+            const doubleHash = await cryptoUtils.hashCredential(singleHash);
+
+            if (admin.pin === doubleHash) {
+                console.log(`[staffService] Detected double-hashed admin PIN. Repairing...`);
+                admin.pin = singleHash;
+                await localDb.put('staff', admin);
+                try {
+                    await updateDoc(doc(db, 'profiles', admin.id), { pin: singleHash });
+                } catch (e) { }
             }
         }
     }
