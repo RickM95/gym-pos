@@ -9,20 +9,24 @@ import LockScreen from "./LockScreen";
 
 interface AuthContextType {
     user: User | null;
-    login: (pin: string) => Promise<boolean>;
+    login: (pin: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => void;
     isLoading: boolean;
-    unlock: (pin: string) => Promise<boolean>;
+    unlock: (pin: string) => Promise<{ success: boolean; error?: string }>;
     setIsLocked: (locked: boolean) => void;
+    authError: string | null;
+    clearAuthError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
     user: null,
-    login: async () => false,
+    login: async () => ({ success: false }),
     logout: () => { },
     isLoading: true,
-    unlock: async () => false,
+    unlock: async () => ({ success: false }),
     setIsLocked: () => { },
+    authError: null,
+    clearAuthError: () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -32,8 +36,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const [isLoading, setIsLoading] = useState(true);
     const [isLocked, setIsLocked] = useState(false);
     const [initError, setInitError] = useState<string | null>(null);
+    const [authError, setAuthError] = useState<string | null>(null);
     const router = useRouter();
     const pathname = usePathname();
+
+    const clearAuthError = () => setAuthError(null);
 
     useEffect(() => {
         const initializeAuth = async () => {
@@ -96,6 +103,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     }, [user, isLocked]);
 
     const login = async (pin: string) => {
+        setAuthError(null);
         try {
             console.log('[AuthProvider] Attempting login with PIN...');
             const u = await authService.login(pin);
@@ -104,13 +112,15 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
                 setUser(u);
                 setIsLocked(false);
                 router.push('/');
-                return true;
+                return { success: true };
             }
-            console.log('[AuthProvider] Login failed: Invalid PIN');
-            return false;
+            setAuthError('Invalid PIN');
+            return { success: false, error: 'Invalid PIN' };
         } catch (error) {
-            console.error('[AuthProvider] Login error:', error);
-            return false;
+            const msg = error instanceof Error ? error.message : 'Login failed';
+            console.error('[AuthProvider] Login error:', msg);
+            setAuthError(msg);
+            return { success: false, error: msg };
         }
     };
 
@@ -123,16 +133,20 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     };
 
     const unlock = async (pin: string) => {
+        setAuthError(null);
         try {
             const unlockingUser = await authService.login(pin);
             if (unlockingUser && unlockingUser.id === user?.id) {
                 setIsLocked(false);
-                return true;
+                return { success: true };
             }
-            return false;
+            setAuthError('Incorrect PIN');
+            return { success: false, error: 'Incorrect PIN' };
         } catch (error) {
-            console.error('Unlock error:', error);
-            return false;
+            const msg = error instanceof Error ? error.message : 'Unlock failed';
+            console.error('Unlock error:', msg);
+            setAuthError(msg);
+            return { success: false, error: msg };
         }
     };
 
@@ -155,7 +169,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     }
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, isLoading, unlock, setIsLocked }}>
+        <AuthContext.Provider value={{ user, login, logout, isLoading, unlock, setIsLocked, authError, clearAuthError }}>
             {isLocked && user && (
                 <LockScreen user={user} onUnlock={unlock} onSignOut={logout} />
             )}

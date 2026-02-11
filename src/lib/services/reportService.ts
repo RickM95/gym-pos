@@ -14,6 +14,7 @@ export interface DashboardStats {
 // Honduran SAR (Servicio de Administración de Rentas) Tax Compliance
 export interface TaxReport {
     id: string;
+    locationId: string;
     reportType: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | 'IVA' | 'ISR';
     reportDate: string;
     filingDate: string;
@@ -145,15 +146,15 @@ export const REPORT_CONFIGS: ReportConfig[] = [
 
 export const reportService = {
     // --- DASHBOARD STATS (existing functionality) ---
-    async getStats(): Promise<DashboardStats> {
+    async getStats(locationId: string = 'all'): Promise<DashboardStats> {
         const db = await getDB();
 
-        // 1. Total Clients (Using count for speed)
-        const totalClients = await db.count('clients');
+        // 1. Total Clients
+        const totalClients = locationId === 'all'
+            ? await db.count('clients')
+            : await db.countFromIndex('clients', 'by-location', locationId);
 
         // 2. Active Subscriptions & Revenue
-        // Subscriptions usually need a scan to check dates, but we can optimize if we had an index.
-        // For now, let's at least optimize the Plan lookup.
         const subscriptions = await db.getAll('subscriptions');
         const plans = await db.getAll('plans');
         const planMap = new Map(plans.map(p => [p.id, p]));
@@ -163,6 +164,8 @@ export const reportService = {
         const now = new Date();
 
         subscriptions.forEach(sub => {
+            if (locationId !== 'all' && sub.locationId !== locationId) return;
+
             const start = new Date(sub.startDate);
             const end = new Date(sub.endDate);
 
@@ -177,7 +180,7 @@ export const reportService = {
             }
         });
 
-        // 3. Today's Checkins (Optimized with Range)
+        // 3. Today's Checkins
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
         const range = IDBKeyRange.lowerBound(startOfToday.getTime());

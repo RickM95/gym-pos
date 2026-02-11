@@ -27,6 +27,7 @@ import { reportService, DashboardStats } from "@/lib/services/reportService";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { permissionService } from "@/lib/services/permissionService";
 import ClientDashboard from "@/components/dashboard/ClientDashboard";
+import { GridCardSkeleton } from "@/components/ui/Skeleton";
 import { GlobalNotificationProvider } from "@/components/providers/GlobalNotificationProvider";
 import { OfflineProvider } from "@/components/providers/OfflineProvider";
 import Navigation from "@/components/navigation/Navigation";
@@ -86,6 +87,7 @@ export default function Home() {
     todaysCheckins: 0
   });
   const [perms, setPerms] = useState<Record<string, boolean>>({});
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -95,25 +97,29 @@ export default function Home() {
 
   const loadData = async () => {
     if (!user) return;
+    setIsLoadingStats(true);
 
-    // Load Permissions
-    let p: Record<string, boolean> = {};
+    try {
+      // Load Permissions
+      let p: Record<string, boolean> = {};
 
-    // Use individual permissions if available
-    if (user.permissions) {
-      p = user.permissions;
-    } else {
-      // Fallback to role-based permissions
-      p = await permissionService.getPermissions(user.role);
-    }
+      if (user.permissions) {
+        p = user.permissions;
+      } else {
+        p = await permissionService.getPermissions(user.role);
+      }
 
-    setPerms(p);
+      setPerms(p);
 
-    // Load Stats only if allowed
-    if (p.view_financials || p.check_in || p.manage_clients) {
-      // We load stats anyway but might hide specific numbers in UI
-      const data = await reportService.getStats();
-      setStats(data);
+      // Load Stats only if allowed
+      if (p.view_financials || p.check_in || p.manage_clients) {
+        const data = await reportService.getStats();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error("Dashboard data load error:", error);
+    } finally {
+      setIsLoadingStats(false);
     }
   };
 
@@ -189,37 +195,48 @@ export default function Home() {
                 {/* KPI Row */}
                 {perms.view_financials && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {/* Total Clients */}
-                    <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
-                      <div className="text-gray-400 text-sm mb-1 flex items-center gap-2">
-                        <Users size={16} /> Total Clients
-                      </div>
-                      <div className="text-2xl font-bold">{stats.totalClients}</div>
-                    </div>
+                    {isLoadingStats ? (
+                      <>
+                        <GridCardSkeleton />
+                        <GridCardSkeleton />
+                        <GridCardSkeleton />
+                        <GridCardSkeleton />
+                      </>
+                    ) : (
+                      <>
+                        {/* Total Clients */}
+                        <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                          <div className="text-gray-400 text-sm mb-1 flex items-center gap-2">
+                            <Users size={16} /> Total Clients
+                          </div>
+                          <div className="text-2xl font-bold">{stats.totalClients}</div>
+                        </div>
 
-                    {/* Active Members */}
-                    <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
-                      <div className="text-gray-400 text-sm mb-1 flex items-center gap-2">
-                        <CheckCircle size={16} /> Active Members
-                      </div>
-                      <div className="text-2xl font-bold text-green-400">{stats.activeSubscriptions}</div>
-                    </div>
+                        {/* Active Members */}
+                        <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                          <div className="text-gray-400 text-sm mb-1 flex items-center gap-2">
+                            <CheckCircle size={16} /> Active Members
+                          </div>
+                          <div className="text-2xl font-bold text-green-400">{stats.activeSubscriptions}</div>
+                        </div>
 
-                    {/* Today's Checkins */}
-                    <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
-                      <div className="text-gray-400 text-sm mb-1 flex items-center gap-2">
-                        <ScanLine size={16} /> Check-ins Today
-                      </div>
-                      <div className="text-2xl font-bold text-blue-400">{stats.todaysCheckins}</div>
-                    </div>
+                        {/* Today's Checkins */}
+                        <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                          <div className="text-gray-400 text-sm mb-1 flex items-center gap-2">
+                            <ScanLine size={16} /> Check-ins Today
+                          </div>
+                          <div className="text-2xl font-bold text-blue-400">{stats.todaysCheckins}</div>
+                        </div>
 
-                    {/* Est. Revenue */}
-                    <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
-                      <div className="text-gray-400 text-sm mb-1 flex items-center gap-2">
-                        <DollarSign size={16} /> Est. Revenue/Mo
-                      </div>
-                      <div className="text-2xl font-bold text-purple-400">${stats.monthlyRevenue}</div>
-                    </div>
+                        {/* Est. Revenue */}
+                        <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                          <div className="text-gray-400 text-sm mb-1 flex items-center gap-2">
+                            <DollarSign size={16} /> Est. Revenue/Mo
+                          </div>
+                          <div className="text-2xl font-bold text-purple-400">${stats.monthlyRevenue}</div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 

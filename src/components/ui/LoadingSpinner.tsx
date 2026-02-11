@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dumbbell } from "lucide-react";
 
 const MOTIVATIONAL_QUOTES = [
     "No Pain, No Gain...",
@@ -44,20 +43,20 @@ export default function LoadingSpinner({ message, fullPage = false, size = 'md' 
         <div className={`flex flex-col items-center justify-center ${currentSize.space}`}>
             <div className={`relative ${currentSize.container} flex items-center justify-center`}>
                 {/* Pushup Man SVG */}
-                <svg viewBox="0 0 100 60" className="w-full h-full">
+                <svg viewBox="0 0 100 60" className="w-full h-full" suppressHydrationWarning>
                     {/* Floor */}
-                    <line x1="10" y1="50" x2="90" y2="50" stroke="#374151" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="10" y1="50" x2="90" y2="50" stroke="#374151" strokeWidth="2" strokeLinecap="round" suppressHydrationWarning />
 
                     {/* Man Group */}
-                    <g className="animate-[pushup_2s_ease-in-out_infinite] origin-[85px_50px]">
+                    <g className="animate-[pushup_2s_ease-in-out_infinite] origin-[85px_50px]" suppressHydrationWarning>
                         {/* Head */}
-                        <circle cx="25" cy="20" r="5" fill="#3B82F6" />
+                        <circle cx="25" cy="20" r="5" fill="#3B82F6" suppressHydrationWarning />
                         {/* Torso */}
-                        <line x1="25" y1="20" x2="80" y2="45" stroke="#3B82F6" strokeWidth="6" strokeLinecap="round" />
+                        <line x1="25" y1="20" x2="80" y2="45" stroke="#3B82F6" strokeWidth="6" strokeLinecap="round" suppressHydrationWarning />
                         {/* Arms (Back) */}
-                        <path d="M 35 25 L 35 50" fill="none" stroke="#2563EB" strokeWidth="4" strokeLinecap="round" />
+                        <path d="M 35 25 L 35 50" fill="none" stroke="#2563EB" strokeWidth="4" strokeLinecap="round" suppressHydrationWarning />
                         {/* Legs */}
-                        <line x1="80" y1="45" x2="90" y2="50" stroke="#374151" strokeWidth="4" strokeLinecap="round" />
+                        <line x1="80" y1="45" x2="90" y2="50" stroke="#374151" strokeWidth="4" strokeLinecap="round" suppressHydrationWarning />
                     </g>
                 </svg>
 

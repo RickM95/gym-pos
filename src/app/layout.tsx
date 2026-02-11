@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/auth/AuthProvider";
 import { GlobalNotificationProvider } from "@/components/providers/GlobalNotificationProvider";
+import { BrandingProvider } from "@/components/auth/BrandingProvider";
+import { FeatureProvider } from "@/components/auth/FeatureProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,14 +28,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+        <meta name="theme-color" content="#111827" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-900 text-white`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased selection:bg-blue-500/30`}
         suppressHydrationWarning
       >
         <AuthProvider>
-          <GlobalNotificationProvider>
-            {children}
-          </GlobalNotificationProvider>
+          <BrandingProvider>
+            <FeatureProvider>
+              <GlobalNotificationProvider>
+                {children}
+              </GlobalNotificationProvider>
+            </FeatureProvider>
+          </BrandingProvider>
         </AuthProvider>
       </body>
     </html>

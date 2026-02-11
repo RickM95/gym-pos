@@ -1,13 +1,25 @@
 import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'gym-platform-db';
-const DB_VERSION = 7;
+const DB_VERSION = 10;
+
+export type BrandingConfig = DBSchemaV1['branding_config']['value'];
+export type FeatureConfigStore = DBSchemaV1['feature_config']['value'];
+
+export interface Location {
+    id: string;
+    name: string;
+    address?: string;
+    phone?: string;
+    isActive: boolean;
+}
 
 export type DBSchemaV1 = {
     clients: {
         key: string;
         value: {
             id: string;
+            locationId: string; // Multi-location
             name: string;
             email?: string;
             phone?: string;
@@ -16,31 +28,35 @@ export type DBSchemaV1 = {
             updatedAt: string;
             synced: number; // 0: false, 1: true
         };
-        indexes: { 'by-qr': string };
+        indexes: { 'by-qr': string; 'by-location': string };
     };
     subscriptions: {
         key: string;
         value: {
             id: string;
+            locationId: string;
             clientId: string;
             planId: string;
             startDate: string;
             endDate: string;
             isActive: boolean;
+            isFrozen: boolean; // Pause feature
+            freezeDate?: string;
             updatedAt: string;
             synced: number;
         };
-        indexes: { 'by-client': string };
+        indexes: { 'by-client': string; 'by-location': string; 'by-active-plan': [string, string] };
     };
     checkins: {
         key: string;
         value: {
             id: string;
+            locationId: string;
             clientId: string;
             timestamp: number; // Changed to number for easier indexing/ranges
             synced: number;
         };
-        indexes: { 'by-client': string; 'by-timestamp': number };
+        indexes: { 'by-client': string; 'by-timestamp': number; 'by-location': string };
     };
     events: {
         key: string;
@@ -112,7 +128,7 @@ export type DBSchemaV1 = {
         key: string;
         value: {
             id: string;
-            type: 'ERROR' | 'BUG_REPORT';
+            type: 'ERROR' | 'BUG_REPORT' | 'SYSTEM_ALERT';
             message: string;
             details?: string;
             user: string;
@@ -121,6 +137,250 @@ export type DBSchemaV1 = {
             status: 'OPEN' | 'RESOLVED';
         };
         indexes: { 'by-type': string; 'by-timestamp': number };
+    };
+    branding_config: {
+        key: string;
+        value: {
+            id: string; // 'current' or specific ID
+            logoUrl?: string;
+            wallpaperUrl?: string;
+            watermarkText?: string;
+            themeId: string; // 'black', 'pink', 'red', 'blue', etc.
+            primaryColor?: string;
+            secondaryColor?: string;
+            accentColor?: string;
+            logoScale?: number;
+            gymName: string;
+            updatedAt: string;
+        };
+    };
+    feature_config: {
+        key: string;
+        value: {
+            id: string; // FeatureKey
+            enabled: boolean;
+            updatedAt: string;
+        };
+    };
+    locations: {
+        key: string;
+        value: Location & { updatedAt: string; synced: number };
+    };
+    payment_methods: {
+        key: string;
+        value: {
+            id: string;
+            clientId: string;
+            type: 'CARD' | 'BANK';
+            token: string;
+            last4: string;
+            exp: string;
+            isDefault: boolean;
+            updatedAt: string;
+        };
+        indexes: { 'by-client': string };
+    };
+    invoices: {
+        key: string;
+        value: {
+            id: string;
+            clientId: string;
+            locationId: string;
+            amount: number;
+            status: 'PAID' | 'OPEN' | 'FAILED';
+            dueDate: string;
+            paymentDate?: string;
+            attempts: number;
+            updatedAt: string;
+        };
+        indexes: { 'by-client': string; 'by-location': string; 'by-status': string };
+    };
+    financed_contracts: {
+        key: string;
+        value: {
+            id: string;
+            clientId: string;
+            totalAmount: number;
+            installmentsTotal: number;
+            installmentsPaid: number;
+            status: 'PENDING' | 'APPROVED' | 'ACTIVE' | 'DEFAULTED';
+            apr: number;
+            updatedAt: string;
+        };
+        indexes: { 'by-client': string; 'by-status': string };
+    };
+    vendors: {
+        key: string;
+        value: {
+            id: string;
+            name: string;
+            category: string;
+            sponsored: boolean;
+            referralLink: string;
+            commissionRate: number;
+            updatedAt: string;
+        };
+    };
+    marketplace_leads: {
+        key: string;
+        value: {
+            id: string;
+            vendorId: string;
+            locationId: string;
+            clickCount: number;
+            conversionStatus: string;
+            updatedAt: string;
+        };
+        indexes: { 'by-vendor': string; 'by-location': string };
+    };
+    digital_products: {
+        key: string;
+        value: {
+            id: string;
+            type: 'PROGRAM' | 'COACHING' | 'PACKAGE';
+            name: string;
+            price: number;
+            trainerId: string;
+            isActive: boolean;
+            updatedAt: string;
+        };
+        indexes: { 'by-trainer': string };
+    };
+    trainer_wallets: {
+        key: string;
+        value: {
+            id: string;
+            trainerId: string;
+            balance: number;
+            pendingCommissions: number;
+            updatedAt: string;
+        };
+    };
+    corporations: {
+        key: string;
+        value: {
+            id: string;
+            name: string;
+            hrContact: string;
+            flatDiscount: number;
+            billingType: 'EMPLOYEE_PAYS' | 'CORP_PAYS';
+            isActive: boolean;
+            updatedAt: string;
+        };
+    };
+    academy_progress: {
+        key: string;
+        value: {
+            id: string;
+            ownerId: string;
+            courseId: string;
+            progress: number;
+            updatedAt: string;
+        };
+        indexes: { 'by-owner': string };
+    };
+    classes: {
+        key: string;
+        value: {
+            id: string;
+            locationId: string;
+            name: string;
+            description?: string;
+            instructorId: string;
+            instructorName: string;
+            startTime: string; // HH:mm
+            endTime: string;   // HH:mm
+            daysOfWeek: number[]; // 0-6
+            capacity: number;
+            category: string;
+            isActive: boolean;
+            updatedAt: string;
+            synced: number;
+        };
+        indexes: { 'by-location': string; 'by-instructor': string };
+    };
+    bookings: {
+        key: string;
+        value: {
+            id: string;
+            classId: string;
+            clientId: string;
+            date: string; // ISO Date YYYY-MM-DD
+            status: 'CONFIRMED' | 'CANCELLED' | 'WAITLIST' | 'ATTENDED';
+            createdAt: string;
+            updatedAt: string;
+            synced: number;
+        };
+        indexes: { 'by-class': string; 'by-client': string; 'by-date': string };
+    };
+    shifts: {
+        key: string;
+        value: {
+            id: string;
+            staffId: string;
+            locationId: string;
+            startTime: string;
+            endTime?: string;
+            type: 'CLOCK_IN' | 'BREAK' | 'CLOCK_OUT';
+            notes?: string;
+            updatedAt: string;
+            synced: number;
+        };
+        indexes: { 'by-staff': string; 'by-location': string; 'by-date': string };
+    };
+    commissions: {
+        key: string;
+        value: {
+            id: string;
+            staffId: string;
+            saleId?: string;
+            bookingId?: string;
+            amount: number;
+            percentage: number;
+            type: 'SALE' | 'PT_SESSION' | 'CLASS';
+            status: 'PENDING' | 'PAID' | 'VOID';
+            date: string;
+            synced: number;
+        };
+        indexes: { 'by-staff': string; 'by-date': string };
+    };
+    notifications: {
+        key: string;
+        value: {
+            id: string;
+            clientId: string;
+            locationId: string;
+            type: 'MEMBERSHIP_EXPIRING' | 'BIRTHDAY' | 'WELCOME' | 'PAYMENT_RECEIPT' | 'CUSTOM';
+            channel: 'WHATSAPP' | 'EMAIL';
+            status: 'PENDING' | 'SENT' | 'FAILED';
+            message: string;
+            scheduledFor: string;
+            sentAt?: string;
+            error?: string;
+            updatedAt: string;
+            synced: number;
+        };
+        indexes: { 'by-client': string; 'by-status': string; 'by-date': string; 'by-location': string };
+    };
+    promotions: {
+        key: string;
+        value: {
+            id: string;
+            locationId: string;
+            name: string;
+            code?: string;
+            discountType: 'PERCENT' | 'FIXED';
+            discountValue: number;
+            minPurchase?: number;
+            startDate: string;
+            endDate: string;
+            applicableTo: { type: 'CATEGORY' | 'PRODUCT' | 'ALL'; id?: string }[];
+            memberOnly: boolean;
+            isActive: boolean;
+            updatedAt: string;
+            synced: number;
+        };
+        indexes: { 'by-location': string; 'by-code': string };
     };
     workout_assignments: {
         key: string;
@@ -171,6 +431,7 @@ export type DBSchemaV1 = {
         key: string;
         value: {
             id: string;
+            locationId: string;
             reportType: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | 'IVA' | 'ISR';
             reportDate: string;
             filingDate: string;
@@ -243,6 +504,7 @@ export type DBSchemaV1 = {
         key: string;
         value: {
             id: string;
+            locationId: string;
             name: string;
             description?: string;
             categoryId: string;
@@ -262,7 +524,7 @@ export type DBSchemaV1 = {
             updatedAt: string;
             synced: number;
         };
-        indexes: { 'by-category': string; 'by-sku': string; 'by-supplier': string; 'low-stock': number };
+        indexes: { 'by-category': string; 'by-sku': string; 'by-supplier': string; 'low-stock': number; 'by-location': string };
     };
     suppliers: {
         key: string;
@@ -285,6 +547,7 @@ export type DBSchemaV1 = {
         key: string;
         value: {
             id: string;
+            locationId: string;
             orderNumber: string;
             supplierId: string;
             status: 'DRAFT' | 'SENT' | 'PARTIAL' | 'RECEIVED' | 'CANCELLED';
@@ -308,7 +571,7 @@ export type DBSchemaV1 = {
             updatedAt: string;
             synced: number;
         };
-        indexes: { 'by-supplier': string; 'by-status': string };
+        indexes: { 'by-supplier': string; 'by-status': string; 'by-location': string };
     };
     inventory_transactions: {
         key: string;
@@ -332,6 +595,7 @@ export type DBSchemaV1 = {
         key: string;
         value: {
             id: string;
+            locationId: string;
             clientId?: string;
             items: {
                 productId: string;
@@ -353,12 +617,13 @@ export type DBSchemaV1 = {
             updatedAt: string;
             synced: number;
         };
-        indexes: { 'by-client': string; 'by-date': number; 'by-staff': string };
+        indexes: { 'by-client': string; 'by-date': number; 'by-staff': string; 'by-location': string };
     };
     expenses: {
         key: string;
         value: {
             id: string;
+            locationId: string;
             description: string;
             category: 'RENT' | 'UTILITIES' | 'SALARIES' | 'EQUIPMENT' | 'MARKETING' | 'SUPPLIES' | 'MAINTENANCE' | 'LOAN' | 'OTHER';
             amount: number;
@@ -373,12 +638,13 @@ export type DBSchemaV1 = {
             updatedAt: string;
             synced: number;
         };
-        indexes: { 'by-category': string; 'by-date': number };
+        indexes: { 'by-category': string; 'by-date': number; 'by-location': string };
     };
     revenue_analytics: {
         key: string;
         value: {
             id: string;
+            locationId: string;
             period: string;
             periodType: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
             date: string;
@@ -397,12 +663,13 @@ export type DBSchemaV1 = {
             created: string;
             synced: number;
         };
-        indexes: { 'by-period': string; 'by-date': number };
+        indexes: { 'by-period': string; 'by-date': number; 'by-location': string };
     };
     recurring_configs: {
         key: string;
         value: {
             id: string;
+            locationId: string;
             name: string;
             amount: number;
             category: 'RENT' | 'UTILITIES' | 'SALARIES' | 'EQUIPMENT' | 'MARKETING' | 'SUPPLIES' | 'MAINTENANCE' | 'LOAN' | 'OTHER';
@@ -537,8 +804,118 @@ export const initDB = () => {
                 if (!db.objectStoreNames.contains('recurring_configs')) {
                     db.createObjectStore('recurring_configs', { keyPath: 'id' });
                 }
-            },
-        });
+
+                // Version 8: Migration for Modular features and Multi-location
+                if (oldVersion < 8) {
+                    const upgradeTx = tx;
+
+                    // Add locationId indexes to existing stores
+                    const storesToUpdate = [
+                        'clients', 'subscriptions', 'checkins', 'tax_reports',
+                        'products', 'purchase_orders', 'sales', 'expenses',
+                        'revenue_analytics', 'recurring_configs'
+                    ];
+
+                    storesToUpdate.forEach(storeName => {
+                        if (db.objectStoreNames.contains(storeName as any)) {
+                            const store = upgradeTx.objectStore(storeName as any);
+                            if (!store.indexNames.contains('by-location')) {
+                                store.createIndex('by-location', 'locationId');
+                            }
+                        }
+                    });
+
+                    // Create new modular stores
+                    if (!db.objectStoreNames.contains('classes')) {
+                        const store = db.createObjectStore('classes', { keyPath: 'id' });
+                        store.createIndex('by-location', 'locationId');
+                        store.createIndex('by-instructor', 'instructorId');
+                    }
+                    if (!db.objectStoreNames.contains('bookings')) {
+                        const store = db.createObjectStore('bookings', { keyPath: 'id' });
+                        store.createIndex('by-class', 'classId');
+                        store.createIndex('by-client', 'clientId');
+                        store.createIndex('by-date', 'date');
+                    }
+                    if (!db.objectStoreNames.contains('shifts')) {
+                        const store = db.createObjectStore('shifts', { keyPath: 'id' });
+                        store.createIndex('by-staff', 'staffId');
+                        store.createIndex('by-location', 'locationId');
+                        store.createIndex('by-date', 'startTime');
+                    }
+                    if (!db.objectStoreNames.contains('commissions')) {
+                        const store = db.createObjectStore('commissions', { keyPath: 'id' });
+                        store.createIndex('by-staff', 'staffId');
+                        store.createIndex('by-date', 'date');
+                    }
+                    if (!db.objectStoreNames.contains('notifications')) {
+                        const store = db.createObjectStore('notifications', { keyPath: 'id' });
+                        store.createIndex('by-client', 'clientId');
+                        store.createIndex('by-status', 'status');
+                        store.createIndex('by-date', 'scheduledFor');
+                        store.createIndex('by-location', 'locationId');
+                    }
+                    if (!db.objectStoreNames.contains('promotions')) {
+                        const store = db.createObjectStore('promotions', { keyPath: 'id' });
+                        store.createIndex('by-location', 'locationId');
+                        store.createIndex('by-code', 'code');
+                    }
+                    if (!db.objectStoreNames.contains('branding_config')) {
+                        db.createObjectStore('branding_config', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('locations')) {
+                        db.createObjectStore('locations', { keyPath: 'id' });
+                    }
+                }
+
+                // Version 9 Migration (Fintech & Ecosystem)
+                if (oldVersion < 9) {
+                    if (!db.objectStoreNames.contains('payment_methods')) {
+                        const store = db.createObjectStore('payment_methods', { keyPath: 'id' });
+                        store.createIndex('by-client', 'clientId');
+                    }
+                    if (!db.objectStoreNames.contains('invoices')) {
+                        const store = db.createObjectStore('invoices', { keyPath: 'id' });
+                        store.createIndex('by-client', 'clientId');
+                        store.createIndex('by-location', 'locationId');
+                        store.createIndex('by-status', 'status');
+                    }
+                    if (!db.objectStoreNames.contains('financed_contracts')) {
+                        const store = db.createObjectStore('financed_contracts', { keyPath: 'id' });
+                        store.createIndex('by-client', 'clientId');
+                        store.createIndex('by-status', 'status');
+                    }
+                    if (!db.objectStoreNames.contains('vendors')) {
+                        db.createObjectStore('vendors', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('marketplace_leads')) {
+                        const store = db.createObjectStore('marketplace_leads', { keyPath: 'id' });
+                        store.createIndex('by-vendor', 'vendorId');
+                        store.createIndex('by-location', 'locationId');
+                    }
+                    if (!db.objectStoreNames.contains('digital_products')) {
+                        const store = db.createObjectStore('digital_products', { keyPath: 'id' });
+                        store.createIndex('by-trainer', 'trainerId');
+                    }
+                    if (!db.objectStoreNames.contains('trainer_wallets')) {
+                        db.createObjectStore('trainer_wallets', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('corporations')) {
+                        db.createObjectStore('corporations', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('academy_progress')) {
+                        const store = db.createObjectStore('academy_progress', { keyPath: 'id' });
+                        store.createIndex('by-owner', 'ownerId');
+                    }
+                    if (oldVersion < 10) {
+                        // Optimized Indexes for Dashboard
+                        const subStore = tx.objectStore('subscriptions');
+                        if (!subStore.indexNames.contains('by-active-plan')) {
+                            subStore.createIndex('by-active-plan', ['isActive', 'planId']);
+                        }
+                    }
+                },
+            });
     }
     return dbPromise;
 };

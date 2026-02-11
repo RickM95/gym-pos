@@ -5,10 +5,12 @@ import { PERMISSION_ITEMS, PermissionKey } from './permissionService';
 import { db } from '../firebase';
 import { collection, doc, setDoc, getDocs, getDoc, updateDoc, query, where, deleteDoc } from 'firebase/firestore';
 
+import { cryptoUtils } from '../utils/cryptoUtils';
+
 export interface StaffMember {
     id: string;
     name: string;
-    pin: string; // 4-digit PIN for login
+    pin: string; // Hashed PIN for login
     role: string;
     permissions: Record<PermissionKey, boolean>;
     photoUrl?: string;
@@ -24,8 +26,12 @@ export const staffService = {
         const id = uuidv4();
         const now = new Date().toISOString();
 
+        // 🛡️ SECURITY: Hash PIN before storage
+        const hashedPin = await cryptoUtils.hashCredential(data.pin);
+
         const newStaff: StaffMember = {
             ...data,
+            pin: hashedPin,
             id,
             createdAt: now,
             updatedAt: now,
@@ -37,7 +43,7 @@ export const staffService = {
             await setDoc(doc(db, 'profiles', id), {
                 id,
                 name: data.name,
-                pin: data.pin,
+                pin: hashedPin,
                 role: data.role,
                 permissions: data.permissions,
                 photoUrl: data.photoUrl || null,
@@ -128,7 +134,12 @@ export const staffService = {
         try {
             const updates: any = { updatedAt: now };
             if (data.name) updates.name = data.name;
-            if (data.pin) updates.pin = data.pin;
+            if (data.pin) {
+                // 🛡️ SECURITY: Hash PIN before update
+                const hashedPin = await cryptoUtils.hashCredential(data.pin);
+                updates.pin = hashedPin;
+                data.pin = hashedPin;
+            }
             if (data.role) updates.role = data.role;
             if (data.permissions) updates.permissions = data.permissions;
             if (data.photoUrl) updates.photoUrl = data.photoUrl;
@@ -168,46 +179,6 @@ export const staffService = {
         await logEvent('STAFF_DELETED', { id });
     },
 
-    async getStaffByPin(pin: string): Promise<StaffMember | null> {
-        try {
-            const q = query(collection(db, 'profiles'), where('pin', '==', pin));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                const data = querySnapshot.docs[0].data() as any;
-                return {
-                    id: data.id,
-                    name: data.name,
-                    pin: data.pin,
-                    role: data.role,
-                    permissions: data.permissions,
-                    photoUrl: data.photoUrl,
-                    rtn: data.rtn,
-                    dpi: data.dpi,
-                    createdAt: data.createdAt,
-                    updatedAt: data.updatedAt,
-                    isActive: true
-                };
-            }
-        } catch (error) {
-            console.error('Firebase getStaffByPin error:', error);
-        }
-
-        const localDb = await getDB();
-        const allStaff = await localDb.getAll('staff');
-        return allStaff.find(s => s.pin === pin && s.isActive) || null;
-    },
-
-    async getStaffPermissions(staffId: string): Promise<Record<string, boolean>> {
-        const staff = await this.getStaff(staffId);
-        if (!staff) {
-            const empty: Record<string, boolean> = {};
-            PERMISSION_ITEMS.forEach(item => empty[item.id] = false);
-            return empty;
-        }
-        return staff.permissions;
-    },
-
     async initializeDefaultStaff() {
         const localDb = await getDB();
         const existingStaff = await localDb.getAll('staff');
@@ -230,10 +201,13 @@ export const staffService = {
                 console.warn("Could not check Firebase for default staff (offline or blocked), relying on local check");
             }
 
+            // 🛡️ SECURITY: Hash default PIN
+            const hashedPin = await cryptoUtils.hashCredential('0000');
+
             const defaultStaff = [
                 {
                     name: 'Administrator',
-                    pin: '0000',
+                    pin: hashedPin,
                     role: 'ADMIN',
                     permissions: PERMISSION_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: true }), {} as Record<PermissionKey, boolean>)
                 }

@@ -16,8 +16,18 @@ import {
     Menu,
     X,
     Dumbbell,
-    Scan
+    Scan,
+    Calendar,
+    Wallet,
+    Bell,
+    Tag,
+    Palette,
+    Box
 } from 'lucide-react';
+import { useFeatures, FeatureGate } from '@/components/auth/FeatureProvider';
+import { useBranding } from '@/components/auth/BrandingProvider';
+import { FeatureKey } from '@/lib/constants/features';
+import { LocationSwitcher } from './LocationSwitcher';
 
 interface NavItem {
     id: string;
@@ -26,12 +36,16 @@ interface NavItem {
     href: string;
     children?: NavItem[];
     highlight?: boolean;
+    feature?: FeatureKey;
 }
 
 export default function Navigation() {
     const [isOpen, setIsOpen] = useState(false);
     const [expandedItems, setExpandedItems] = useState<string[]>([]);
     const pathname = usePathname();
+
+    const { features } = useFeatures();
+    const { config } = useBranding();
 
     const navigationItems: NavItem[] = [
         {
@@ -46,6 +60,13 @@ export default function Navigation() {
             icon: <Scan size={20} />,
             href: '/scan',
             highlight: true
+        },
+        {
+            id: 'scheduling',
+            label: 'Scheduling',
+            icon: <Calendar size={20} />,
+            href: '/scheduling',
+            feature: FeatureKey.SCHEDULING
         },
         {
             id: 'members',
@@ -66,10 +87,39 @@ export default function Navigation() {
             href: '/sales'
         },
         {
+            id: 'payroll',
+            label: 'Payroll',
+            icon: <Wallet size={20} />,
+            href: '/payroll',
+            feature: FeatureKey.PAYROLL
+        },
+        {
             id: 'inventory',
             label: 'Inventory',
             icon: <Package size={20} />,
-            href: '/inventory'
+            href: '/inventory',
+            children: [
+                {
+                    id: 'products',
+                    label: 'Products',
+                    icon: <Package size={16} />,
+                    href: '/inventory'
+                },
+                {
+                    id: 'promotions',
+                    label: 'Promotions',
+                    icon: <Tag size={16} />,
+                    href: '/inventory/promotions',
+                    feature: FeatureKey.POS_PROMOTIONS
+                }
+            ]
+        },
+        {
+            id: 'notifications',
+            label: 'Notifications',
+            icon: <Bell size={20} />,
+            href: '/notifications',
+            feature: FeatureKey.NOTIFICATIONS
         },
         {
             id: 'programs',
@@ -116,6 +166,18 @@ export default function Navigation() {
                     href: '/settings'
                 },
                 {
+                    id: 'branding',
+                    label: 'Branding',
+                    icon: <Palette size={16} />,
+                    href: '/settings/branding'
+                },
+                {
+                    id: 'modules',
+                    label: 'Modules',
+                    icon: <Box size={16} />,
+                    href: '/settings/modules'
+                },
+                {
                     id: 'access',
                     label: 'Access Control',
                     icon: <Settings size={16} />,
@@ -130,6 +192,22 @@ export default function Navigation() {
             ]
         }
     ];
+
+    const filteredItems = navigationItems.filter(item => {
+        if (item.feature && !features[item.feature]) return false;
+
+        // Filter children if any
+        if (item.children) {
+            item.children = item.children.filter(child => {
+                if (child.feature && !features[child.feature]) return false;
+                return true;
+            });
+            // If all children are filtered out, maybe hide the parent? 
+            // Only if parent itself has no href or is just a container.
+        }
+
+        return true;
+    });
 
     const toggleExpanded = (itemId: string) => {
         setExpandedItems(prev =>
@@ -184,8 +262,8 @@ export default function Navigation() {
                 key={item.id}
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition ${active
-                        ? (item.highlight ? 'bg-blue-500 text-white ring-2 ring-blue-400 ring-offset-2 ring-offset-gray-900 shadow-lg shadow-blue-500/50' : 'bg-blue-600 text-white')
-                        : (item.highlight ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50 hover:bg-blue-600/30' : 'text-gray-300 hover:bg-gray-800 hover:text-white')
+                    ? (item.highlight ? 'bg-blue-500 text-white ring-2 ring-blue-400 ring-offset-2 ring-offset-gray-900 shadow-lg shadow-blue-500/50' : 'bg-blue-600 text-white')
+                    : (item.highlight ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50 hover:bg-blue-600/30' : 'text-gray-300 hover:bg-gray-800 hover:text-white')
                     } ${level > 0 ? 'pl-' + (4 + level * 4) : ''} ${item.highlight ? 'font-bold' : ''}`}
                 onClick={() => setIsOpen(false)}
             >
@@ -220,21 +298,38 @@ export default function Navigation() {
                     {/* Header */}
                     <div className="p-6 border-b border-gray-800">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-600 rounded-lg">
-                                <Dumbbell size={24} className="text-white" />
+                            <div
+                                className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden transition-transform duration-300"
+                                style={{ transform: `scale(var(--logo-scale, 1))` }}
+                            >
+                                {config.logoUrl ? (
+                                    <img src={config.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                                ) : (
+                                    <Dumbbell size={24} className="text-white" />
+                                )}
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold text-white">Spartan Gym</h1>
-                                <p className="text-xs text-gray-400">Management System</p>
+                                <h1 className="text-lg font-bold text-white truncate max-w-[140px] leading-tight">
+                                    {config.gymName}
+                                </h1>
+                                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">
+                                    Management
+                                </p>
                             </div>
                         </div>
                     </div>
 
                     {/* Navigation Items */}
                     <div className="flex-1 p-4 space-y-1 overflow-y-auto">
-                        {navigationItems.map(item => (
-                            <NavItemComponent key={item.id} item={item} />
-                        ))}
+                        <LocationSwitcher />
+                        <NavItemComponent
+                            item={{
+                                id: 'ecosystem',
+                                label: 'Ecosystem',
+                                icon: ShoppingCart,
+                                path: '/settings/ecosystem',
+                            }}
+                        />
                     </div>
 
                     {/* Footer */}

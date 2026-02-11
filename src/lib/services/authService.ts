@@ -1,3 +1,4 @@
+import { cryptoUtils } from '../utils/cryptoUtils';
 import { staffService } from './staffService';
 import { clientAuthService } from './clientAuthService';
 
@@ -13,47 +14,79 @@ export interface User {
 }
 
 const SESSION_KEY = 'gym_platform_user';
+const FAILED_ATTEMPTS_KEY = 'auth_failed_attempts';
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 30000; // 30 seconds
 
 export const authService = {
     async login(pin: string): Promise<User | null> {
-        console.log('[authService] Login attempt with PIN');
+        console.log('[authService] Secure login attempt');
 
-        // 1. Check legacy/special users (CLIENT, TECH - can be moved to DB later)
-        const LEGACY_USERS: Record<string, User> = {
-            '3333': { id: 'demo-client-001', name: 'Member Kiosk', role: 'CLIENT', linkedClientId: 'demo-client-001' },
-            '9999': { id: 'tech-001', name: 'Tech Support', role: 'TECH' },
-        };
-
-        if (LEGACY_USERS[pin]) {
-            const user = LEGACY_USERS[pin];
-            if (typeof window !== 'undefined') {
-                localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-            }
-            return user;
+        // 1. Rate Limiting Check
+        const status = (this as any).getLockoutStatus();
+        if (status.isLocked) {
+            const remaining = Math.ceil((status.unlockTime - Date.now()) / 1000);
+            throw new Error(`Too many failed attempts. Try again in ${remaining}s.`);
         }
 
-        // 2. Check Staff Profiles (via staffService which checks Firebase -> Local)
+        // 2. Check Staff Profiles
         try {
-            const staff = await staffService.getStaffByPin(pin);
-            if (staff) {
-                const user: User = {
-                    id: staff.id,
-                    name: staff.name,
-                    role: staff.role as UserRole,
-                    permissions: staff.permissions,
-                    photoUrl: staff.photoUrl
-                };
+            const allStaff = await staffService.getAllStaff();
 
-                if (typeof window !== 'undefined') {
-                    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+            for (const staff of allStaff) {
+                const isValid = await cryptoUtils.verifyCredential(pin, staff.pin);
+                if (isValid && staff.isActive) {
+                    (this as any).resetFailedAttempts();
+                    const user: User = {
+                        id: staff.id,
+                        name: staff.name,
+                        role: staff.role as UserRole,
+                        permissions: staff.permissions,
+                        photoUrl: staff.photoUrl
+                    };
+
+                    if (typeof window !== 'undefined') {
+                        localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+                    }
+                    return user;
                 }
-                return user;
             }
         } catch (error) {
             console.error('[authService] Staff login error:', error);
+            if (error instanceof Error && error.message.includes('attempts')) throw error;
         }
 
+        (this as any).recordFailedAttempt();
         return null;
+    },
+
+    recordFailedAttempt() {
+        if (typeof window === 'undefined') return;
+        const attempts = parseInt(localStorage.getItem(FAILED_ATTEMPTS_KEY) || '0') + 1;
+        localStorage.setItem(FAILED_ATTEMPTS_KEY, attempts.toString());
+        localStorage.setItem(FAILED_ATTEMPTS_KEY + '_time', Date.now().toString());
+    },
+
+    resetFailedAttempts() {
+        if (typeof window === 'undefined') return;
+        localStorage.removeItem(FAILED_ATTEMPTS_KEY);
+        localStorage.removeItem(FAILED_ATTEMPTS_KEY + '_time');
+    },
+
+    getLockoutStatus() {
+        if (typeof window === 'undefined') return { isLocked: false, unlockTime: 0 };
+        const attempts = parseInt(localStorage.getItem(FAILED_ATTEMPTS_KEY) || '0');
+        const lastTime = parseInt(localStorage.getItem(FAILED_ATTEMPTS_KEY + '_time') || '0');
+
+        if (attempts >= MAX_ATTEMPTS) {
+            const unlockTime = lastTime + LOCKOUT_MS;
+            if (Date.now() < unlockTime) {
+                return { isLocked: true, unlockTime };
+            } else {
+                (this as any).resetFailedAttempts();
+            }
+        }
+        return { isLocked: false, unlockTime: 0 };
     },
 
     async initialize() {
