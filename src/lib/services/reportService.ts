@@ -148,39 +148,35 @@ export const reportService = {
     // --- DASHBOARD STATS (existing functionality) ---
     async getStats(locationId: string = 'all'): Promise<DashboardStats> {
         const db = await getDB();
+        const now = new Date();
 
         // 1. Total Clients
         const totalClients = locationId === 'all'
             ? await db.count('clients')
             : await db.countFromIndex('clients', 'by-location', locationId);
 
-        // 2. Active Subscriptions & Revenue
-        const subscriptions = await db.getAll('subscriptions');
+        // 2. Active Subscriptions (Using index for O(log n))
+        const activeSubscriptions = locationId === 'all'
+            ? await db.countFromIndex('subscriptions', 'by-active-plan', IDBKeyRange.bound([1, ""], [1, "\uffff"]))
+            : (await db.getAllFromIndex('subscriptions', 'by-active-plan', IDBKeyRange.bound([1, ""], [1, "\uffff"])))
+                .filter(s => s.locationId === locationId).length;
+
+        // 3. Monthly Revenue (Estimated)
+        const activeSubData = await db.getAllFromIndex('subscriptions', 'by-active-plan', IDBKeyRange.bound([1, ""], [1, "\uffff"]));
         const plans = await db.getAll('plans');
         const planMap = new Map(plans.map(p => [p.id, p]));
 
-        let activeSubscriptions = 0;
         let monthlyRevenue = 0;
-        const now = new Date();
-
-        subscriptions.forEach(sub => {
+        activeSubData.forEach(sub => {
             if (locationId !== 'all' && sub.locationId !== locationId) return;
-
-            const start = new Date(sub.startDate);
-            const end = new Date(sub.endDate);
-
-            if (sub.isActive && now >= start && now <= end) {
-                activeSubscriptions++;
-
-                const plan = planMap.get(sub.planId);
-                if (plan) {
-                    const dailyRate = plan.price / plan.durationDays;
-                    monthlyRevenue += dailyRate * 30;
-                }
+            const plan = planMap.get(sub.planId);
+            if (plan) {
+                const dailyRate = plan.price / plan.durationDays;
+                monthlyRevenue += dailyRate * 30;
             }
         });
 
-        // 3. Today's Checkins
+        // 4. Today's Checkins
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
         const range = IDBKeyRange.lowerBound(startOfToday.getTime());

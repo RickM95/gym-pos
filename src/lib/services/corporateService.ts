@@ -41,5 +41,21 @@ export const corporateService = {
     async getCorporations() {
         const db = await getDB();
         return await db.getAll('corporations');
+    },
+
+    /**
+     * Seeds initial corporate partners for Central American regional market.
+     */
+    async seedCorporations() {
+        const db = await getDB();
+        const corps = [
+            { id: 'c1', name: 'Global Tech Corp', hrContact: 'Ana Martinez', flatDiscount: 15, billingType: 'EMPLOYEE_PAYS', isActive: true, updatedAt: new Date().toISOString() },
+            { id: 'c2', name: 'Innova Solutions', hrContact: 'Carlos Ruiz', flatDiscount: 10, billingType: 'CORP_PAYS', isActive: true, updatedAt: new Date().toISOString() },
+            { id: 'c3', name: 'City Bank', hrContact: 'Elena Gomez', flatDiscount: 20, billingType: 'EMPLOYEE_PAYS', isActive: true, updatedAt: new Date().toISOString() }
+        ];
+
+        for (const corp of corps) {
+            await db.put('corporations', corp as any);
+        }
     }
 };

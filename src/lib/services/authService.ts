@@ -1,6 +1,8 @@
 import { cryptoUtils } from '../utils/cryptoUtils';
 import { staffService } from './staffService';
 import { clientAuthService } from './clientAuthService';
+import { marketplaceService } from './marketplaceService';
+import { corporateService } from './corporateService';
 
 export type UserRole = 'ADMIN' | 'TRAINER' | 'STAFF' | 'CLIENT' | 'TECH' | 'FRONT_DESK';
 
@@ -99,6 +101,16 @@ export const authService = {
             );
 
             await Promise.race([initPromise, timeoutPromise]);
+
+            // 🚀 SaaS Ecosystem Seeding
+            const marketplaceSeed = marketplaceService.getVendors().then(async (v) => {
+                if (v.length === 0) await marketplaceService.seedVendors();
+            });
+            const corporateSeed = corporateService.getCorporations().then(async (c) => {
+                if (c.length === 0) await corporateService.seedCorporations();
+            });
+
+            await Promise.all([marketplaceSeed, corporateSeed]);
         } catch (error) {
             console.error('[authService] Initialization error:', error);
             // Continue anyway - app can work with local storage
