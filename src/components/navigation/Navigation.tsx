@@ -22,7 +22,8 @@ import {
     Bell,
     Tag,
     Palette,
-    Box
+    Box,
+    ShoppingCart
 } from 'lucide-react';
 import { useFeatures, FeatureGate } from '@/components/auth/FeatureProvider';
 import { useBranding } from '@/components/auth/BrandingProvider';
@@ -322,14 +323,26 @@ export default function Navigation() {
                     {/* Navigation Items */}
                     <div className="flex-1 p-4 space-y-1 overflow-y-auto">
                         <LocationSwitcher />
-                        <NavItemComponent
-                            item={{
-                                id: 'ecosystem',
-                                label: 'Ecosystem',
-                                icon: ShoppingCart,
-                                path: '/settings/ecosystem',
-                            }}
-                        />
+                        <div className="pt-2 pb-1 px-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                            Global Ecosystem
+                        </div>
+                        <Link
+                            href="/settings/ecosystem"
+                            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition ${isActive('/settings/ecosystem')
+                                ? 'bg-blue-600 text-white'
+                                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                }`}
+                            onClick={() => setIsOpen(false)}
+                        >
+                            <ShoppingCart size={20} />
+                            <span>Ecosystem</span>
+                        </Link>
+
+                        <div className="h-px bg-gray-800 my-4" />
+
+                        {filteredItems.map(item => (
+                            <NavItemComponent key={item.id} item={item} />
+                        ))}
                     </div>
 
                     {/* Footer */}
