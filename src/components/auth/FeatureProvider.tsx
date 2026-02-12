@@ -27,15 +27,21 @@ export const FeatureProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const loadFeatures = async () => {
             try {
                 const db = await getDB();
-                const allConfigs = await db.getAll('feature_config');
+                const { authService } = await import('@/lib/services/authService');
+                const user = authService.getUser();
 
-                if (allConfigs.length > 0) {
-                    const mergedFeatures = { ...features };
-                    allConfigs.forEach(config => {
-                        mergedFeatures[config.id as FeatureKey] = config.enabled;
-                    });
-                    setFeatures(mergedFeatures);
+                if (!db.objectStoreNames.contains('feature_config')) {
+                    console.warn('[FeatureProvider] feature_config store not found. Database might be upgrading.');
+                    return;
                 }
+
+                const companyId = user?.companyId || 'global';
+                const allConfigs = await db.getAllFromIndex('feature_config', 'by-company', companyId);
+                const mergedFeatures = { ...features };
+                allConfigs.forEach(config => {
+                    mergedFeatures[config.id as FeatureKey] = config.enabled;
+                });
+                setFeatures(mergedFeatures);
             } catch (error) {
                 console.error('Failed to load feature configs:', error);
             } finally {
@@ -51,10 +57,15 @@ export const FeatureProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updateFeature = async (key: FeatureKey, enabled: boolean) => {
         try {
             const db = await getDB();
+            const { authService } = await import('@/lib/services/authService');
+            const user = authService.getUser();
+            const companyId = user?.companyId || 'global';
+
             await db.put('feature_config', {
-                id: key,
+                id: `${companyId}_${key}`,
                 enabled,
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
+                companyId
             });
             setFeatures(prev => ({ ...prev, [key]: enabled }));
         } catch (error) {

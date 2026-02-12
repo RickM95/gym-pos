@@ -24,12 +24,15 @@ export const notificationService = {
         const notification = {
             id: crypto.randomUUID(),
             clientId: payload.clientId,
-            locationId: 'default', // In real usage, get from client or context
+            locationId: 'main-gym', // In real usage, get from client or context
             type: payload.type,
-            channel: payload.channel,
-            status: 'PENDING' as const,
+            title: payload.type.replace('_', ' '),
             message: payload.message,
+            status: 'SENT' as const,
             scheduledFor: payload.scheduledFor || new Date().toISOString(),
+            sentAt: payload.scheduledFor ? undefined : new Date().toISOString(),
+            metadata: { channel: payload.channel },
+            createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             synced: 0
         };
@@ -47,24 +50,25 @@ export const notificationService = {
      */
     async processPendingNotifications(): Promise<void> {
         const db = await getDB();
-        const pending = await db.getAllFromIndex('notifications', 'by-status', 'PENDING');
-
+        const allNotifications = await db.getAll('notifications');
         const now = new Date();
 
-        for (const notif of pending) {
-            if (new Date(notif.scheduledFor) <= now) {
+        for (const notif of allNotifications) {
+            // Process notifications that haven't been sent yet (sentAt undefined) and are scheduled for now or earlier
+            if (!notif.sentAt && new Date(notif.scheduledFor) <= now) {
                 try {
-                    if (notif.channel === 'WHATSAPP') {
+                    const channel = notif.metadata?.channel || 'WHATSAPP';
+                    if (channel === 'WHATSAPP') {
                         await this.sendWhatsApp(notif.message);
                     } else {
                         await this.sendEmail(notif.message);
                     }
 
-                    notif.status = 'SENT';
                     notif.sentAt = new Date().toISOString();
+                    notif.status = 'SENT';
                 } catch (error) {
                     notif.status = 'FAILED';
-                    notif.error = (error as Error).message;
+                    notif.metadata = { ...notif.metadata, error: (error as Error).message };
                 }
 
                 notif.updatedAt = new Date().toISOString();

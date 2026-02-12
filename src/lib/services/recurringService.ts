@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export interface RecurringExpenseConfig {
     id: string;
+    locationId: string;
     name: string; // e.g., "Gym Rent"
     amount: number;
     category: Expense['category'];
@@ -31,6 +32,7 @@ export const recurringService = {
         const now = new Date().toISOString();
         const newConfig: RecurringExpenseConfig = {
             ...config,
+            locationId: config.locationId || 'main-gym',
             id: `REC-${uuidv4()}`,
             createdAt: now,
             updatedAt: now
@@ -76,7 +78,8 @@ export const recurringService = {
             vendor: config.vendor,
             paymentMethod,
             notes: notes || `Auto-generated from recurring config: ${config.name}`,
-            createdBy: 'system' // or current user
+            createdBy: 'system', // or current user
+            locationId: config.locationId || 'main-gym'
         });
 
         // Update last paid date

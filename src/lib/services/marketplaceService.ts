@@ -31,12 +31,16 @@ export const marketplaceService = {
                 id: leadId,
                 vendorId,
                 locationId,
-                clickCount: 1,
-                conversionStatus: 'CLICKED',
-                updatedAt: new Date().toISOString()
+                leadType: 'CLICK',
+                contactInfo: { clickCount: 1 },
+                status: 'NEW',
+                notes: '',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                synced: 0
             };
         } else {
-            lead.clickCount += 1;
+            lead.contactInfo.clickCount = (lead.contactInfo.clickCount || 0) + 1;
             lead.updatedAt = new Date().toISOString();
         }
 

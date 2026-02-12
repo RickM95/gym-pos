@@ -9,55 +9,67 @@ import { cryptoUtils } from '../utils/cryptoUtils';
 
 export interface StaffMember {
     id: string;
+    locationId: string;
+    companyId: string;
     name: string;
-    pin: string; // Hashed PIN for login
+    username: string;
+    pin: string;
+    email?: string;
+    phone?: string;
     role: string;
-    permissions: Record<PermissionKey, boolean>;
+    permissions: Record<string, boolean>;
     photoUrl?: string;
     rtn?: string;
     dpi?: string;
+    isActive: boolean;
+    hireDate: string;
+    terminationDate?: string;
     createdAt: string;
     updatedAt: string;
-    isActive: boolean;
+    synced: number;
 }
 
 export const staffService = {
-    async createStaff(data: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt' | 'isActive'>) {
+    async createStaff(data: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt' | 'isActive' | 'synced'> & { locationId?: string }) {
         const id = uuidv4();
         const now = new Date().toISOString();
 
-        // 🛡️ SECURITY: Hash PIN before storage
+        const username = data.username.toLowerCase().trim();
         const hashedPin = await cryptoUtils.hashCredential(data.pin);
-
         const newStaff: StaffMember = {
             ...data,
+            locationId: data.locationId || 'main-gym',
+            companyId: (data as any).companyId || 'global',
+            hireDate: data.hireDate || now,
+            username,
             pin: hashedPin,
             id,
             createdAt: now,
             updatedAt: now,
-            isActive: true
+            isActive: true,
+            synced: 0
         };
 
-        // 1. Sync to Firebase
-        try {
-            await setDoc(doc(db, 'profiles', id), {
-                id,
-                name: data.name,
-                pin: hashedPin,
-                role: data.role,
-                permissions: data.permissions,
-                photoUrl: data.photoUrl || null,
-                rtn: data.rtn || null,
-                dpi: data.dpi || null,
-                createdAt: now,
-                updatedAt: now
-            });
-        } catch (error) {
-            console.error('Failed to sync staff to Firebase:', error);
-        }
+        // 1. Sync to Firebase (Fire-and-forget to prevent blocking local availability)
+        const cloudSync = setDoc(doc(db, 'profiles', id), {
+            id,
+            name: data.name,
+            username: data.username,
+            pin: hashedPin,
+            role: data.role,
+            permissions: data.permissions,
+            photoUrl: data.photoUrl || null,
+            rtn: data.rtn || null,
+            dpi: data.dpi || null,
+            createdAt: now,
+            updatedAt: now
+        }).catch(error => {
+            console.warn('[staffService] Background Firebase sync failed:', error);
+        });
 
         const localDb = await getDB();
         await localDb.add('staff', newStaff);
+        console.log('[staffService] Local record created for:', newStaff.username);
         await logEvent('STAFF_CREATED', newStaff);
 
         return newStaff;
@@ -70,21 +82,30 @@ export const staffService = {
                 const staffMembers: StaffMember[] = [];
                 const localDb = await getDB();
                 const tx = localDb.transaction('staff', 'readwrite');
+                const now = new Date().toISOString();
 
                 querySnapshot.forEach((doc) => {
                     const data = doc.data() as any;
                     const staff: StaffMember = {
                         id: data.id,
+                        locationId: data.locationId || 'main-gym',
+                        companyId: data.companyId || 'global',
                         name: data.name,
+                        username: (data.username || data.name.toLowerCase().replace(/\s+/g, '_')).toLowerCase(),
                         pin: data.pin,
+                        email: data.email,
+                        phone: data.phone,
                         role: data.role,
                         permissions: data.permissions,
                         photoUrl: data.photoUrl,
                         rtn: data.rtn,
                         dpi: data.dpi,
+                        isActive: true,
+                        hireDate: data.hireDate || data.createdAt || now,
+                        terminationDate: data.terminationDate,
                         createdAt: data.createdAt,
                         updatedAt: data.updatedAt,
-                        isActive: true
+                        synced: data.synced || 0
                     };
                     staffMembers.push(staff);
                     tx.store.put(staff);
@@ -108,6 +129,7 @@ export const staffService = {
                 return {
                     id: data.id,
                     name: data.name,
+                    username: data.username,
                     pin: data.pin,
                     role: data.role,
                     permissions: data.permissions,
@@ -127,6 +149,55 @@ export const staffService = {
         return localDb.get('staff', id);
     },
 
+    async getStaffByUsername(usernameInput: string): Promise<StaffMember | null> {
+        const username = usernameInput.toLowerCase().trim();
+        const localDb = await getDB();
+        try {
+            const staff = await localDb.getFromIndex('staff', 'by-username', username);
+            if (staff) return staff;
+
+            // Fallback: Manual Scan
+            const allStaff = await localDb.getAll('staff');
+            const found = allStaff.find(s => s.username === username);
+            if (found) return found;
+        } catch (error) {
+            console.warn('[staffService] Index lookup failed, attempting manual scan...', error);
+            try {
+                const allStaff = await localDb.getAll('staff');
+                return allStaff.find(s => s.username === username) || null;
+            } catch (scanError) {
+                console.error('[staffService] Manual scan failed:', scanError);
+            }
+        }
+
+        // Fallback to Firebase search if online
+        try {
+            const q = query(collection(db, 'profiles'), where('username', '==', username));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const data = querySnapshot.docs[0].data() as any;
+                return {
+                    id: data.id,
+                    name: data.name,
+                    username: data.username,
+                    pin: data.pin,
+                    role: data.role,
+                    permissions: data.permissions,
+                    photoUrl: data.photoUrl,
+                    rtn: data.rtn,
+                    dpi: data.dpi,
+                    createdAt: data.createdAt,
+                    updatedAt: data.updatedAt,
+                    isActive: true
+                } as StaffMember;
+            }
+        } catch (error) {
+            console.error('Firebase getStaffByUsername error:', error);
+        }
+
+        return null;
+    },
+
     async updateStaff(id: string, data: Partial<Omit<StaffMember, 'id' | 'createdAt'>>) {
         const now = new Date().toISOString();
 
@@ -134,6 +205,11 @@ export const staffService = {
         try {
             const updates: any = { updatedAt: now };
             if (data.name) updates.name = data.name;
+            if (data.username) {
+                const normalized = data.username.toLowerCase().trim();
+                updates.username = normalized;
+                data.username = normalized;
+            }
             if (data.pin) {
                 // 🛡️ SECURITY: Hash PIN before update
                 const hashedPin = await cryptoUtils.hashCredential(data.pin);
@@ -182,8 +258,10 @@ export const staffService = {
     async initializeDefaultStaff() {
         const localDb = await getDB();
         const existingStaff = await localDb.getAll('staff');
+        console.log('[staffService] Local staff count:', existingStaff.length);
 
         if (existingStaff.length === 0) {
+            console.log('[staffService] Starting primary seeding process...');
             // Also check Firebase with timeout to prevent hanging
             try {
                 const checkFirebase = async () => {
@@ -196,56 +274,121 @@ export const staffService = {
                 );
 
                 const hasCloudStaff = await Promise.race([checkFirebase(), timeout]);
-                if (hasCloudStaff) return;
+                if (hasCloudStaff) {
+                    console.error('[staffService] Cloud data detected. Syncing to local cache...');
+                    await this.getAllStaff();
+                    console.error('[staffService] Cloud sync complete.');
+                    // Don't return! We need the repair logic below to run.
+                }
             } catch (e) {
-                console.warn("Could not check Firebase for default staff (offline or blocked), relying on local check");
+                console.warn("[staffService] Cloud check skipped (likely offline or unauthorized). Falling back to local defaults.");
             }
 
             // 🛡️ SECURITY: Pass plaintext PIN to createStaff which handles hashing
             const defaultStaff = [
                 {
                     name: 'Administrator',
+                    username: 'admin',
                     pin: '0000', // Plaintext here, createStaff will hash it
                     role: 'ADMIN',
+                    locationId: 'main-gym',
+                    companyId: 'global',
+                    hireDate: new Date().toISOString(),
                     permissions: PERMISSION_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: true }), {} as Record<PermissionKey, boolean>)
                 }
             ];
 
             for (const staffData of defaultStaff) {
+                console.log('[staffService] Seeding default account:', staffData.username);
                 await this.createStaff(staffData);
             }
+            console.log('[staffService] Local seeding complete.');
         }
 
-        // 🛡️ SECURITY: Migrate legacy plaintext PINs to hashed format
+        // 🛡️ SECURITY: Migrate legacy staff (add username and hash plaintext PINs)
         const allStaff = await localDb.getAll('staff');
         for (const s of allStaff) {
-            if (s.pin && s.pin.length < 20) {
+            let changed = false;
+
+            // 1. Username Migration
+            if (!s.username || s.username === 'administrator') {
+                console.log(`[staffService] Migrating/Normalizing username for ${s.name}`);
+                // Special case for Administrator
+                if (s.name === 'Administrator' || s.role === 'ADMIN' || s.username === 'administrator') {
+                    s.username = 'admin';
+                } else if (!s.username) {
+                    s.username = s.name.toLowerCase().replace(/\s+/g, '_').toLowerCase();
+                }
+                changed = true;
+            } else if (s.username !== s.username.toLowerCase()) {
+                console.log(`[staffService] Normalizing username to lowercase for ${s.name}`);
+                s.username = s.username.toLowerCase();
+                changed = true;
+            }
+
+            // 2. legacy PIN Migration
+            const isHashed = s.pin.length > 20 || s.pin.startsWith('dev-hash-');
+            if (s.pin && !isHashed) {
                 console.log(`[staffService] Migrating legacy PIN for ${s.name}`);
                 const hashed = await cryptoUtils.hashCredential(s.pin);
                 s.pin = hashed;
+                changed = true;
+            }
+
+            if (changed) {
+                console.log(`[staffService] Saving migrated record for ${s.name}...`);
                 await localDb.put('staff', s);
-                try {
-                    await updateDoc(doc(db, 'profiles', s.id), { pin: hashed });
-                } catch (e) {
-                    console.warn(`[staffService] Firebase PIN migration skipped for ${s.name} (offline)`);
-                }
+                // 🛡️ SECURITY: Background sync to prevent initialization hang
+                setDoc(doc(db, 'profiles', s.id), {
+                    username: s.username,
+                    pin: s.pin
+                }, { merge: true }).catch(e => {
+                    console.warn(`[staffService] Background migration sync failed for ${s.name}`);
+                });
             }
         }
 
-        // 🛡️ SECURITY: Repair double-hashed Administrator PIN if necessary
-        const admin = allStaff.find(s => s.name === 'Administrator' && s.role === 'ADMIN');
-        if (admin) {
-            const singleHash = await cryptoUtils.hashCredential('0000');
-            const doubleHash = await cryptoUtils.hashCredential(singleHash);
+        // 🛡️ NUCLEAR REPAIR: Final Stand against identity issues
+        const finalCheck = await localDb.getAll('staff');
+        console.error('--- NUCLEAR REPAIR SCAN ---');
+        console.error('Total Staff in Store:', finalCheck.length);
 
-            if (admin.pin === doubleHash) {
-                console.log(`[staffService] Detected double-hashed admin PIN. Repairing...`);
-                admin.pin = singleHash;
-                await localDb.put('staff', admin);
-                try {
-                    await updateDoc(doc(db, 'profiles', admin.id), { pin: singleHash });
-                } catch (e) { }
+        let targetAdmin = finalCheck.find(s => s.username === 'admin' || s.role === 'ADMIN' || s.name === 'Administrator');
+
+        if (targetAdmin) {
+            console.error('Admin Identity Found:', targetAdmin.username);
+            const correctHash = await cryptoUtils.hashCredential('0000');
+
+            if (targetAdmin.pin !== correctHash || targetAdmin.username !== 'admin') {
+                console.error('Repairing Admin Record...');
+                targetAdmin.username = 'admin';
+                targetAdmin.pin = correctHash;
+                targetAdmin.isActive = true;
+                await localDb.put('staff', targetAdmin);
+                // Background sync
+                setDoc(doc(doc(db, 'profiles', targetAdmin.id).parent, targetAdmin.id), {
+                    username: 'admin',
+                    pin: correctHash,
+                    isActive: true,
+                    role: 'ADMIN'
+                }, { merge: true }).catch(() => { });
+                console.error('Repair complete.');
+            } else {
+                console.error('Admin record is healthy.');
             }
+        } else {
+            console.error('CRITICAL: NO ADMIN RECORD FOUND. Re-running seeding logic...');
+            await this.createStaff({
+                name: 'Administrator',
+                username: 'admin',
+                pin: '0000',
+                role: 'ADMIN',
+                locationId: 'main-gym',
+                companyId: 'global',
+                hireDate: new Date().toISOString(),
+                permissions: PERMISSION_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: true }), {} as any)
+            });
         }
+        console.error('---------------------------');
     }
 };

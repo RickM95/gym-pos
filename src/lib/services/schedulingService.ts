@@ -6,13 +6,15 @@ export interface GymClass {
     name: string;
     description?: string;
     instructorId: string;
-    instructorName: string;
-    startTime: string; // HH:mm
-    endTime: string;   // HH:mm
-    daysOfWeek: number[]; // 0-6
+    schedule: any;
     capacity: number;
-    category: string;
-    isActive: boolean;
+    enrolled: number;
+    status: 'ACTIVE' | 'CANCELLED' | 'COMPLETED';
+    startDate: string;
+    endDate: string;
+    createdAt: string;
+    updatedAt: string;
+    synced: number;
 }
 
 export interface Booking {
@@ -20,7 +22,11 @@ export interface Booking {
     classId: string;
     clientId: string;
     date: string; // ISO Date YYYY-MM-DD
-    status: 'CONFIRMED' | 'CANCELLED' | 'WAITLIST' | 'ATTENDED';
+    status: 'BOOKED' | 'ATTENDED' | 'CANCELLED' | 'NO_SHOW';
+    notes?: string;
+    createdAt: string;
+    updatedAt: string;
+    synced: number;
 }
 
 /**
@@ -63,10 +69,14 @@ export const schedulingService = {
             classId,
             clientId,
             date,
-            status: 'CONFIRMED'
+            status: 'BOOKED',
+            notes: '',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            synced: 0
         };
 
-        await db.put('bookings', { ...booking, synced: 0, updatedAt: new Date().toISOString() } as any);
+        await db.put('bookings', booking);
         return booking;
     },
 

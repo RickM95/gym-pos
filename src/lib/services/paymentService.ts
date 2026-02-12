@@ -3,14 +3,20 @@ import { v4 as uuidv4 } from 'uuid';
 
 export interface Invoice {
     id: string;
-    clientId: string;
     locationId: string;
+    clientId: string;
+    invoiceNumber: string;
     amount: number;
-    status: 'PAID' | 'OPEN' | 'FAILED';
+    tax: number;
+    total: number;
+    status: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED';
     dueDate: string;
-    paymentDate?: string;
-    attempts: number;
+    paidDate?: string;
+    items: any[];
+    notes?: string;
+    createdAt: string;
     updatedAt: string;
+    synced: number;
 }
 
 export const paymentService = {
@@ -21,13 +27,20 @@ export const paymentService = {
         const db = await getDB();
         const invoice: Invoice = {
             id: uuidv4(),
-            clientId,
             locationId,
+            clientId,
+            invoiceNumber: `INV-${Date.now()}`,
             amount,
-            status: 'OPEN',
+            tax: amount * 0.15, // Assume 15% tax
+            total: amount * 1.15,
+            status: 'SENT',
             dueDate: new Date().toISOString(),
-            attempts: 0,
-            updatedAt: new Date().toISOString()
+            paidDate: undefined,
+            items: [],
+            notes: '',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            synced: 0
         };
         await db.put('invoices', invoice);
         return invoice;
@@ -47,13 +60,12 @@ export const paymentService = {
 
         if (success) {
             invoice.status = 'PAID';
-            invoice.paymentDate = new Date().toISOString();
+            invoice.paidDate = new Date().toISOString();
         } else {
-            invoice.attempts += 1;
-            if (invoice.attempts >= 3) {
-                invoice.status = 'FAILED';
-                // TODO: Trigger client suspension
-            }
+            // Mark as OVERDUE on failure
+            invoice.status = 'OVERDUE';
+            // Track failure count in notes
+            invoice.notes = (invoice.notes || '') + ` Payment failed on ${new Date().toISOString()};`;
         }
 
         invoice.updatedAt = new Date().toISOString();
@@ -70,7 +82,7 @@ export const paymentService = {
         if (!invoice) throw new Error('Invoice not found');
 
         invoice.status = 'PAID';
-        invoice.paymentDate = new Date().toISOString();
+        invoice.paidDate = new Date().toISOString();
         invoice.updatedAt = new Date().toISOString();
         // Log reference in metadata if needed
         await db.put('invoices', invoice);
@@ -84,12 +96,12 @@ export const paymentService = {
         const invoices = await db.getAllFromIndex('invoices', 'by-location', locationId);
 
         const paid = invoices.filter(i => i.status === 'PAID');
-        const failed = invoices.filter(i => i.status === 'FAILED');
+        const overdue = invoices.filter(i => i.status === 'OVERDUE');
 
         return {
             totalVolume: paid.reduce((acc, curr) => acc + curr.amount, 0),
-            successRate: (paid.length / (paid.length + failed.length || 1)) * 100,
-            pendingVolume: invoices.filter(i => i.status === 'OPEN').reduce((acc, curr) => acc + curr.amount, 0)
+            successRate: (paid.length / (paid.length + overdue.length || 1)) * 100,
+            pendingVolume: invoices.filter(i => i.status === 'SENT').reduce((acc, curr) => acc + curr.amount, 0)
         };
     }
 };

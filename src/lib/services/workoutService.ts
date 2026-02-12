@@ -5,37 +5,48 @@ import { logEvent } from '../sync';
 export interface Exercise {
     id: string;
     name: string;
-    category: string; // Strength, Cardio, Flexibility
-    muscleGroup: string; // Chest, Back, Legs, etc.
-    videoUrl?: string;
+    description?: string;
+    category: string;
+    muscleGroups: string[];
+    equipment?: string;
+    difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+    mediaUrls?: string[];
+    createdAt: string;
     updatedAt: string;
     synced: number;
 }
 
 export interface WorkoutExercise {
-    id: string; // Ref to Exercise ID
-    name: string; // Cached name for display
+    exerciseId: string;
     sets: number;
     reps: number;
+    weight?: number;
+    duration?: number;
     notes?: string;
 }
 
 export interface Workout {
     id: string;
     name: string;
+    description?: string;
     exercises: WorkoutExercise[];
+    duration?: number;
+    difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+    createdAt: string;
     updatedAt: string;
     synced: number;
 }
 
 export const workoutService = {
     // --- EXERCISES ---
-    async createExercise(data: Omit<Exercise, 'id' | 'updatedAt' | 'synced'>) {
+    async createExercise(data: Omit<Exercise, 'id' | 'createdAt' | 'updatedAt' | 'synced'>) {
         const db = await getDB();
+        const now = new Date().toISOString();
         const exercise: Exercise = {
             ...data,
             id: uuidv4(),
-            updatedAt: new Date().toISOString(),
+            createdAt: now,
+            updatedAt: now,
             synced: 0
         };
         await db.add('exercises', exercise);
@@ -49,13 +60,14 @@ export const workoutService = {
     },
 
     // --- WORKOUTS ---
-    async createWorkout(name: string, exercises: WorkoutExercise[]) {
+    async createWorkout(data: Omit<Workout, 'id' | 'createdAt' | 'updatedAt' | 'synced'>) {
         const db = await getDB();
+        const now = new Date().toISOString();
         const workout: Workout = {
+            ...data,
             id: uuidv4(),
-            name,
-            exercises,
-            updatedAt: new Date().toISOString(),
+            createdAt: now,
+            updatedAt: now,
             synced: 0
         };
         await db.add('workouts', workout);
@@ -69,15 +81,19 @@ export const workoutService = {
     },
 
     // --- ASSIGNMENTS ---
-    async assignWorkout(clientId: string, workoutId: string, trainerId: string, notes?: string) {
+    async assignWorkout(clientId: string, workoutId: string, trainerId: string, notes?: string, locationId: string = 'main-gym') {
         const db = await getDB();
+        const now = new Date().toISOString();
         const assignment = {
             id: uuidv4(),
+            locationId,
             clientId,
             workoutId,
             assignedBy: trainerId,
-            assignedAt: new Date().toISOString(),
-            notes
+            assignedDate: now,
+            status: 'PENDING' as const,
+            notes,
+            synced: 0
         };
         await db.add('workout_assignments', assignment);
         return assignment;

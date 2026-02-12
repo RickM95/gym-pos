@@ -21,6 +21,8 @@ export interface Subscription {
     startDate: string;
     endDate: string;
     isActive: boolean;
+    isFrozen: boolean;
+    freezeDate?: string;
     paymentMethod: 'CASH' | 'TRANSFER' | 'POS' | 'COMPLIMENTARY';
     paymentAmount: number;
     paymentReference?: string;
@@ -28,6 +30,8 @@ export interface Subscription {
     adminName?: string;
     updatedAt: string;
     synced: number;
+    locationId: string;
+    companyId?: string;
 }
 
 export const subscriptionService = {
@@ -103,7 +107,9 @@ export const subscriptionService = {
             image?: string,
             durationDays?: number,
             adminName?: string
-        }
+        },
+        locationId?: string,
+        companyId?: string
     ) {
         let planName = "Custom / Complimentary";
         let durationDays = paymentDetails.durationDays || 30;
@@ -140,7 +146,10 @@ export const subscriptionService = {
             paymentImage: paymentDetails.image,
             adminName: paymentDetails.adminName,
             updatedAt: now,
-            synced: 1
+            synced: 1,
+            locationId: locationId || '',
+            companyId: companyId || '',
+            isFrozen: false
         };
 
         try {
@@ -152,11 +161,14 @@ export const subscriptionService = {
                 startDate: subscription.startDate,
                 endDate: subscription.endDate,
                 isActive: true,
+                isFrozen: false,
                 paymentMethod: paymentDetails.method,
                 paymentAmount: paymentDetails.amount,
                 paymentReference: paymentDetails.reference || null,
                 paymentImage: paymentDetails.image || null,
                 adminName: paymentDetails.adminName || null,
+                locationId: locationId || null,
+                companyId: companyId || null,
                 updatedAt: now
             });
         } catch (error) {
@@ -191,13 +203,17 @@ export const subscriptionService = {
                     startDate: data.startDate,
                     endDate: data.endDate,
                     isActive: data.isActive,
+                    isFrozen: data.isFrozen || false,
+                    freezeDate: data.freezeDate,
                     paymentMethod: data.paymentMethod,
                     paymentAmount: data.paymentAmount,
                     paymentReference: data.paymentReference,
                     paymentImage: data.paymentImage,
                     adminName: data.adminName,
                     updatedAt: data.updatedAt,
-                    synced: 1
+                    synced: 1,
+                    locationId: data.locationId || '',
+                    companyId: data.companyId
                 };
             }
         } catch (error) {
@@ -236,13 +252,17 @@ export const subscriptionService = {
                     startDate: data.startDate,
                     endDate: data.endDate,
                     isActive: data.isActive,
+                    isFrozen: data.isFrozen || false,
+                    freezeDate: data.freezeDate,
                     paymentMethod: data.paymentMethod,
                     paymentAmount: data.paymentAmount,
                     paymentReference: data.paymentReference,
                     paymentImage: data.paymentImage,
                     adminName: data.adminName,
                     updatedAt: data.updatedAt,
-                    synced: 1
+                    synced: 1,
+                    locationId: data.locationId || '',
+                    companyId: data.companyId
                 });
             });
             return subs;
@@ -277,13 +297,17 @@ export const subscriptionService = {
                     startDate: data.startDate,
                     endDate: data.endDate,
                     isActive: data.isActive,
+                    isFrozen: data.isFrozen || false,
+                    freezeDate: data.freezeDate,
                     paymentMethod: data.paymentMethod,
                     paymentAmount: data.paymentAmount,
                     paymentReference: data.paymentReference,
                     paymentImage: data.paymentImage,
                     adminName: data.adminName,
                     updatedAt: data.updatedAt,
-                    synced: 1
+                    synced: 1,
+                    locationId: data.locationId || '',
+                    companyId: data.companyId
                 });
             });
             return subs;

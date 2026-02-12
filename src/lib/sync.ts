@@ -40,20 +40,31 @@ export type EventType =
 
 export interface SyncEvent {
     id: string;
-    type: EventType;
-    payload: any;
-    timestamp: number;
+    eventType: string;
+    entityType: string;
+    entityId: string;
+    data: any;
+    timestamp: string;
     synced: number; // 0 = false, 1 = true
+    companyId: string;
+    performerId: string;
 }
 
 export const logEvent = async (type: EventType, payload: any) => {
     const db = await getDB();
+    const { authService } = await import('./services/authService');
+    const user = authService.getUser();
+
     const event: SyncEvent = {
         id: uuidv4(),
-        type,
-        payload,
-        timestamp: Date.now(),
+        eventType: type,
+        entityType: type,
+        entityId: payload.id || 'unknown',
+        data: payload,
+        timestamp: new Date().toISOString(),
         synced: 0,
+        companyId: user?.companyId || 'unknown',
+        performerId: user?.id || 'system'
     };
     await db.add('events', event);
     console.log(`[OfflineSync] Event logged: ${type}`, event);

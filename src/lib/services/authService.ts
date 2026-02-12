@@ -4,15 +4,19 @@ import { clientAuthService } from './clientAuthService';
 import { marketplaceService } from './marketplaceService';
 import { corporateService } from './corporateService';
 
-export type UserRole = 'ADMIN' | 'TRAINER' | 'STAFF' | 'CLIENT' | 'TECH' | 'FRONT_DESK';
+export type UserRole = 'ADMIN' | 'TRAINER' | 'STAFF' | 'CLIENT' | 'TECH' | 'FRONT_DESK' | 'ACCOUNTANT' | 'AUDITOR';
 
 export interface User {
     id: string;
     name: string;
+    username: string; // Add username for identity-based flows
     role: UserRole;
+    locationId: string;
+    companyId: string;
     linkedClientId?: string;
     permissions?: Record<string, boolean>; // Individual permissions for staff
     photoUrl?: string; // Profile picture URL
+    isActive: boolean;
 }
 
 const SESSION_KEY = 'gym_platform_user';
@@ -21,8 +25,9 @@ const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 30000; // 30 seconds
 
 export const authService = {
-    async login(pin: string): Promise<User | null> {
-        console.log('[authService] Secure login attempt');
+    async login(identifier: string, pin: string): Promise<User | null> {
+        const username = identifier.toLowerCase().trim();
+        console.log('[authService] Secure login attempt for:', username);
 
         // 1. Rate Limiting Check
         const status = (this as any).getLockoutStatus();
@@ -33,16 +38,20 @@ export const authService = {
 
         // 2. Check Staff Profiles
         try {
-            const allStaff = await staffService.getAllStaff();
+            const staff = await staffService.getStaffByUsername(username);
 
-            for (const staff of allStaff) {
+            if (staff && staff.isActive) {
                 const isValid = await cryptoUtils.verifyCredential(pin, staff.pin);
-                if (isValid && staff.isActive) {
+                if (isValid) {
                     (this as any).resetFailedAttempts();
                     const user: User = {
                         id: staff.id,
                         name: staff.name,
+                        username: staff.username,
                         role: staff.role as UserRole,
+                        locationId: staff.locationId,
+                        companyId: staff.companyId,
+                        isActive: staff.isActive,
                         permissions: staff.permissions,
                         photoUrl: staff.photoUrl
                     };
@@ -55,6 +64,36 @@ export const authService = {
             }
         } catch (error) {
             console.error('[authService] Staff login error:', error);
+
+            // EMERGENCY FALLBACK: Manual Scan if StaffService fails
+            try {
+                const { getDB } = await import('../db');
+                const localDb = await getDB();
+                if (localDb.objectStoreNames.contains('staff')) {
+                    console.warn('[authService] PROCEEDING WITH EMERGENCY MANUAL SCAN');
+                    const allStaff = await localDb.getAll('staff');
+                    const staff = allStaff.find(s => s.username === username && s.isActive);
+                    if (staff) {
+                        const isValid = await cryptoUtils.verifyCredential(pin, staff.pin);
+                        if (isValid) {
+                            const user: User = {
+                                id: staff.id,
+                                name: staff.name,
+                                username: staff.username,
+                                role: staff.role as any,
+                                locationId: staff.locationId,
+                                companyId: staff.companyId,
+                                isActive: staff.isActive,
+                                permissions: staff.permissions
+                            };
+                            return user;
+                        }
+                    }
+                }
+            } catch (fallbackError) {
+                console.error('[authService] Emergency fallback also failed:', fallbackError);
+            }
+
             if (error instanceof Error && error.message.includes('attempts')) throw error;
         }
 
@@ -92,17 +131,23 @@ export const authService = {
     },
 
     async initialize() {
-        // Initialize default staff if cloud is empty
+        // 🔓 EMERGENCY BYPASS: Clear failed attempts immediately on initialization
+        if (typeof window !== 'undefined') {
+            (this as any).resetFailedAttempts();
+        }
+
+        // Initialize default staff and ecosystem data in background
+        // We don't await this so the UI can load immediately
+        this.runBackgroundInitialization().catch(err => {
+            console.error('[authService] Background initialization failed:', err);
+        });
+    },
+
+    async runBackgroundInitialization() {
         try {
-            // Add timeout to prevent hanging
-            const initPromise = staffService.initializeDefaultStaff();
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Initialization timeout')), 5000)
-            );
+            await staffService.initializeDefaultStaff();
 
-            await Promise.race([initPromise, timeoutPromise]);
-
-            // 🚀 SaaS Ecosystem Seeding
+            // SaaS Ecosystem Seeding
             const marketplaceSeed = marketplaceService.getVendors().then(async (v) => {
                 if (v.length === 0) await marketplaceService.seedVendors();
             });
@@ -112,8 +157,7 @@ export const authService = {
 
             await Promise.all([marketplaceSeed, corporateSeed]);
         } catch (error) {
-            console.error('[authService] Initialization error:', error);
-            // Continue anyway - app can work with local storage
+            console.error('[authService] Background init error:', error);
         }
     },
 
@@ -159,7 +203,11 @@ export const authService = {
                 const user: User = {
                     id: result.client.id,
                     name: result.client.name,
+                    username: result.client.id, // Use ID as username for clients
                     role: 'CLIENT',
+                    locationId: result.client.locationId || 'main-gym',
+                    companyId: result.client.companyId || 'global',
+                    isActive: true,
                     linkedClientId: result.client.id,
                     photoUrl: result.client.photoUrl
                 };

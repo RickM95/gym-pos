@@ -4,13 +4,11 @@ import { User } from './authService';
 
 export interface LogEntry {
     id: string;
-    type: 'ERROR' | 'BUG_REPORT';
+    type: string;
     message: string;
-    details?: string;
-    user: string;
-    role: string;
-    timestamp: number;
-    status: 'OPEN' | 'RESOLVED';
+    data?: any;
+    timestamp: string;
+    synced: number;
 }
 
 export const loggerService = {
@@ -20,11 +18,14 @@ export const loggerService = {
             id: uuidv4(),
             type: 'ERROR',
             message: typeof error === 'string' ? error : error.message,
-            details: details || (error instanceof Error ? error.stack : undefined),
-            user: user ? user.name : 'Anonymous',
-            role: user ? user.role : 'UNKNOWN',
-            timestamp: Date.now(),
-            status: 'OPEN'
+            data: {
+                details: details || (error instanceof Error ? error.stack : undefined),
+                user: user ? user.name : 'Anonymous',
+                role: user ? user.role : 'UNKNOWN',
+                status: 'OPEN'
+            },
+            timestamp: new Date().toISOString(),
+            synced: 0
         };
         await db.put('logs', entry);
         console.error("Logged Error:", entry);
@@ -36,11 +37,14 @@ export const loggerService = {
             id: uuidv4(),
             type: 'BUG_REPORT',
             message,
-            details,
-            user: user ? user.name : 'Anonymous',
-            role: user ? user.role : 'UNKNOWN',
-            timestamp: Date.now(),
-            status: 'OPEN'
+            data: {
+                details,
+                user: user ? user.name : 'Anonymous',
+                role: user ? user.role : 'UNKNOWN',
+                status: 'OPEN'
+            },
+            timestamp: new Date().toISOString(),
+            synced: 0
         };
         await db.put('logs', entry);
     },

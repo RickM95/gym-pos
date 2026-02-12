@@ -3,6 +3,7 @@ import { logEvent } from '../sync';
 
 export interface Expense {
     id: string;
+    locationId: string;
     description: string;
     category: 'RENT' | 'UTILITIES' | 'SALARIES' | 'EQUIPMENT' | 'MARKETING' | 'SUPPLIES' | 'MAINTENANCE' | 'LOAN' | 'OTHER';
     amount: number;
@@ -22,6 +23,7 @@ export interface Expense {
 
 export interface RevenueAnalytics {
     id: string;
+    locationId: string;
     period: string;
     periodType: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
     date: string;
@@ -236,6 +238,7 @@ export const analyticsService = {
 
         const analytics: RevenueAnalytics = {
             id: `REV-${Date.now()}`,
+            locationId: 'main-gym',
             period,
             periodType,
             date: startDateStr,

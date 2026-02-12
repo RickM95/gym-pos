@@ -36,7 +36,18 @@ export const trainerService = {
         // Update trainer wallet
         let wallet = await db.get('trainer_wallets', trainerId);
         if (!wallet) {
-            wallet = { id: uuidv4(), trainerId, balance: 0, pendingCommissions: 0, updatedAt: new Date().toISOString() };
+            wallet = { 
+                id: uuidv4(), 
+                trainerId, 
+                balance: 0, 
+                currency: 'USD', 
+                pendingAmount: 0, 
+                lastPayoutDate: undefined, 
+                payoutMethod: undefined, 
+                createdAt: new Date().toISOString(), 
+                updatedAt: new Date().toISOString(), 
+                synced: 0 
+            };
         }
 
         wallet.balance += trainerCut;

@@ -112,7 +112,7 @@ export const clientAuthService = {
         // 2. Local fallback if not found or error
         if (!auth) {
             const dbLocal = await getDB();
-            auth = await dbLocal.get('client_auth', credentials.clientId);
+             auth = (await dbLocal.get('client_auth', credentials.clientId)) || null;
         }
 
         if (!auth) throw new Error('Client authentication not found');
@@ -171,7 +171,7 @@ export const clientAuthService = {
         return { client, auth: { ...auth, loginAttempts: 0, isLocked: false, lastLogin: now, updatedAt: now } };
     },
 
-    async updateClientAuth(clientId: string, updates: { password?: string; pin?: string; }): Promise<void> {
+     async updateClientAuth(clientId: string, updates: { password?: string; pin?: string; }): Promise<void> {
         const now = new Date().toISOString();
         const dbUpdates: any = { updatedAt: now };
 
@@ -190,5 +190,39 @@ export const clientAuthService = {
             auth.updatedAt = now;
             await dbLocal.put('client_auth', auth);
         }
+    },
+
+    async getClientAuth(clientId: string): Promise<ClientAuth | null> {
+         // Try Firebase first
+        try {
+            const docRef = doc(db, 'client_auth', clientId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data() as any;
+                return {
+                    clientId: data.clientId,
+                    password: data.password,
+                    pin: data.pin,
+                    biometricData: data.biometricData,
+                    lastLogin: data.lastLogin,
+                    loginAttempts: data.loginAttempts,
+                    isLocked: data.isLocked,
+                    lockUntil: data.lockUntil,
+                    createdAt: data.createdAt,
+                    updatedAt: data.updatedAt
+                };
+            }
+        } catch (error) {
+            console.error('Firebase getClientAuth error:', error);
+        }
+        // Local fallback
+        const dbLocal = await getDB();
+        const auth = await dbLocal.get('client_auth', clientId);
+        return auth || null;
+    },
+
+    async hasClientAuth(clientId: string): Promise<boolean> {
+        const auth = await this.getClientAuth(clientId);
+        return !!auth;
     }
 };

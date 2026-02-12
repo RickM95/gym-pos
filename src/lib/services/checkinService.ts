@@ -24,6 +24,8 @@ export const checkinService = {
                 const data = querySnapshot.docs[0].data() as any;
                 client = {
                     id: data.id,
+                    locationId: data.locationId || 'main-gym',
+                    companyId: data.companyId,
                     name: data.name,
                     email: data.email,
                     phone: data.phone,
@@ -45,7 +47,7 @@ export const checkinService = {
         if (!client) {
             // Local fallback
             const localDb = await getDB();
-            client = await localDb.getFromIndex('clients', 'by-qr', qrCode);
+             client = (await localDb.getFromIndex('clients', 'by-qr', qrCode)) || null;
         }
 
         if (!client) {
@@ -65,8 +67,9 @@ export const checkinService = {
 
         let firebaseSynced = 1;
         try {
-            await setDoc(doc(db, 'check_ins', checkinId), {
+             await setDoc(doc(db, 'check_ins', checkinId), {
                 id: checkinId,
+                locationId: client.locationId || 'main-gym',
                 clientId: client.id,
                 timestamp: now
             });
@@ -75,17 +78,21 @@ export const checkinService = {
             firebaseSynced = 0;
         }
 
-        // local log regardless for history
+         // local log regardless for history
         const localDb = await getDB();
         const checkin = {
             id: checkinId,
+            locationId: client.locationId || 'main-gym',
             clientId: client.id,
             timestamp: now,
+            checkinType: 'GENERAL',
+            staffId: undefined,
+            notes: undefined,
             synced: firebaseSynced
         };
 
         await localDb.add('checkins', checkin);
-        await logEvent('CHECK_IN', checkin);
+         await logEvent('CHECKIN', checkin);
 
         return {
             success: true,

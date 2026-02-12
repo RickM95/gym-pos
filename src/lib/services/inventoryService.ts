@@ -11,6 +11,7 @@ export interface InventoryCategory {
     createdAt: string;
     updatedAt: string;
     synced: number;
+    companyId: string;
 }
 
 export interface Product {
@@ -34,6 +35,8 @@ export interface Product {
     createdAt: string;
     updatedAt: string;
     synced: number;
+    locationId: string;
+    companyId: string;
 }
 
 export interface Supplier {
@@ -75,6 +78,8 @@ export interface PurchaseOrder {
     createdAt: string;
     updatedAt: string;
     synced: number;
+    locationId: string;
+    companyId: string;
 }
 
 export interface InventoryTransaction {
@@ -90,10 +95,12 @@ export interface InventoryTransaction {
     createdBy: string;
     createdAt: string;
     synced: number;
+    companyId: string;
 }
 
 export interface Sale {
     id: string;
+    locationId: string;
     clientId?: string;
     items: {
         productId: string;
@@ -114,6 +121,7 @@ export interface Sale {
     createdAt: string;
     updatedAt: string;
     synced: number;
+    companyId: string;
 }
 
 export const inventoryService = {
@@ -127,6 +135,10 @@ export const inventoryService = {
                 const localDb = await getDB();
                 const tx = localDb.transaction('inventory_categories', 'readwrite');
 
+                const { authService } = await import('./authService');
+                const user = authService.getUser();
+                const companyId = user?.companyId || 'global';
+
                 snapshot.forEach(doc => {
                     const data = doc.data() as any;
                     const category: InventoryCategory = {
@@ -136,7 +148,8 @@ export const inventoryService = {
                         parentId: data.parentId,
                         createdAt: data.createdAt,
                         updatedAt: data.updatedAt,
-                        synced: 1
+                        synced: 1,
+                        companyId: data.companyId || companyId
                     };
                     categories.push(category);
                     tx.store.put(category);
@@ -149,7 +162,16 @@ export const inventoryService = {
         }
 
         const dbLocal = await getDB();
-        return dbLocal.getAll('inventory_categories');
+        const { authService } = await import('./authService');
+        const user = authService.getUser();
+        const companyId = user?.companyId || 'global';
+
+        const allCategories = await dbLocal.getAll('inventory_categories');
+        // Ensure all categories have companyId for backward compatibility
+        return allCategories.map(cat => ({
+            ...cat,
+            companyId: cat.companyId || companyId
+        }));
     },
 
     async getCategory(id: string): Promise<InventoryCategory | undefined> {
@@ -164,7 +186,8 @@ export const inventoryService = {
                     parentId: data.parentId,
                     createdAt: data.createdAt,
                     updatedAt: data.updatedAt,
-                    synced: 1
+                    synced: 1,
+                    companyId: data.companyId || 'global'
                 };
             }
         } catch (error) {
@@ -172,16 +195,31 @@ export const inventoryService = {
         }
 
         const dbLocal = await getDB();
-        return dbLocal.get('inventory_categories', id);
+        const { authService } = await import('./authService');
+        const user = authService.getUser();
+        const companyId = user?.companyId || 'global';
+
+        const category = await dbLocal.get('inventory_categories', id);
+        if (!category) return undefined;
+
+        // Ensure companyId exists for backward compatibility
+        return {
+            ...category,
+            companyId: (category as any).companyId || companyId
+        };
     },
 
-    async createCategory(category: Omit<InventoryCategory, 'id' | 'createdAt' | 'updatedAt' | 'synced'>): Promise<InventoryCategory> {
+    async createCategory(category: Omit<InventoryCategory, 'id' | 'createdAt' | 'updatedAt' | 'synced' | 'companyId'>): Promise<InventoryCategory> {
         const id = `CAT-${Date.now()}`;
         const now = new Date().toISOString();
+        const { authService } = await import('./authService');
+        const user = authService.getUser();
+        const companyId = user?.companyId || 'global';
 
         const newCategory: InventoryCategory = {
             ...category,
             id,
+            companyId,
             createdAt: now,
             updatedAt: now,
             synced: 1
@@ -193,6 +231,7 @@ export const inventoryService = {
                 name: category.name,
                 description: category.description || null,
                 parentId: category.parentId || null,
+                companyId,
                 createdAt: now,
                 updatedAt: now
             });
@@ -279,7 +318,9 @@ export const inventoryService = {
                         isActive: data.isActive,
                         createdAt: data.createdAt,
                         updatedAt: data.updatedAt,
-                        synced: 1
+                        synced: 1,
+                        locationId: data.locationId,
+                        companyId: data.companyId || 'global'
                     };
                     products.push(product);
                 });
@@ -299,9 +340,17 @@ export const inventoryService = {
         }
 
         const dbLocal = await getDB();
+        const { authService } = await import('./authService');
+        const user = authService.getUser();
+
         if (categoryId) {
             return dbLocal.getAllFromIndex('products', 'by-category', categoryId);
         }
+
+        if (user?.companyId) {
+            return dbLocal.getAllFromIndex('products', 'by-company', user.companyId);
+        }
+
         return dbLocal.getAll('products');
     },
 
@@ -332,7 +381,9 @@ export const inventoryService = {
                     isActive: data.isActive,
                     createdAt: data.createdAt,
                     updatedAt: data.updatedAt,
-                    synced: 1
+                    synced: 1,
+                    locationId: data.locationId || 'main-gym',
+                    companyId: data.companyId || 'global'
                 } as Product;
             }
         } catch (error) {
@@ -346,10 +397,14 @@ export const inventoryService = {
     async createProduct(product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'synced'>): Promise<Product> {
         const id = `PROD-${Date.now()}`;
         const now = new Date().toISOString();
+        const { authService } = await import('./authService');
+        const user = authService.getUser();
+        const companyId = user?.companyId || 'global';
 
         const newProduct: Product = {
             ...product,
             id,
+            companyId: product.companyId || companyId,
             createdAt: now,
             updatedAt: now,
             synced: 1
@@ -373,6 +428,8 @@ export const inventoryService = {
                 expiryDate: product.expiryDate || null,
                 batchNumber: product.batchNumber || null,
                 isActive: product.isActive,
+                locationId: product.locationId,
+                companyId: product.companyId || companyId,
                 createdAt: now,
                 updatedAt: now
             });
@@ -424,6 +481,7 @@ export const inventoryService = {
                 referenceType: referenceType || null,
                 notes: notes || null,
                 createdBy,
+                companyId: product.companyId,
                 createdAt: now
             });
             firebaseSuccess = true;
@@ -437,7 +495,8 @@ export const inventoryService = {
             ...product,
             currentStock: newStock,
             updatedAt: now,
-            synced: firebaseSuccess ? 1 : 0
+            synced: firebaseSuccess ? 1 : 0,
+            companyId: product.companyId
         });
 
         const transaction: InventoryTransaction = {
@@ -451,6 +510,7 @@ export const inventoryService = {
             referenceType,
             notes,
             createdBy,
+            companyId: product.companyId,
             createdAt: now,
             synced: firebaseSuccess ? 1 : 0
         };
@@ -483,6 +543,7 @@ export const inventoryService = {
                     const data = doc.data() as any;
                     const sale: Sale = {
                         id: data.id,
+                        locationId: data.locationId,
                         clientId: data.clientId,
                         items: data.items,
                         subtotal: data.subtotal,
@@ -496,7 +557,8 @@ export const inventoryService = {
                         notes: data.notes,
                         createdAt: data.createdAt,
                         updatedAt: data.updatedAt,
-                        synced: 1
+                        synced: 1,
+                        companyId: data.companyId || 'global'
                     };
                     sales.push(sale);
                     tx.store.put(sale);
@@ -509,7 +571,14 @@ export const inventoryService = {
         }
 
         const dbLocal = await getDB();
+        const { authService } = await import('./authService');
+        const user = authService.getUser();
+
         let sales = await dbLocal.getAll('sales');
+
+        if (user?.companyId) {
+            sales = await dbLocal.getAllFromIndex('sales', 'by-company', user.companyId);
+        }
 
         if (startDate || endDate) {
             sales = sales.filter(s => {
@@ -527,9 +596,14 @@ export const inventoryService = {
         const id = `SALE-${Date.now()}`;
         const now = new Date().toISOString();
 
+        const { authService } = await import('./authService');
+        const user = authService.getUser();
+        const companyId = sale.companyId || user?.companyId || 'global';
+
         const newSale: Sale = {
             ...sale,
             id,
+            companyId,
             createdAt: now,
             updatedAt: now,
             synced: 1
@@ -550,6 +624,8 @@ export const inventoryService = {
                 saleDate: sale.saleDate,
                 staffId: sale.staffId,
                 notes: sale.notes || null,
+                locationId: sale.locationId,
+                companyId: newSale.companyId,
                 createdAt: now,
                 updatedAt: now
             });

@@ -68,10 +68,28 @@ const DEFAULTS: Record<UserRole, Record<string, boolean>> = {
     },
     FRONT_DESK: {
         view_financials: false,
-        manage_plans: false, // Maybe can sell plans?
+        manage_plans: false,
         manage_clients: true,
         manage_workouts: false,
         check_in: true,
+        sync_data: false,
+        edit_photos: false,
+    },
+    ACCOUNTANT: {
+        view_financials: true,
+        manage_plans: false,
+        manage_clients: false,
+        manage_workouts: false,
+        check_in: false,
+        sync_data: false,
+        edit_photos: false,
+    },
+    AUDITOR: {
+        view_financials: true,
+        manage_plans: false,
+        manage_clients: false,
+        manage_workouts: false,
+        check_in: false,
         sync_data: false,
         edit_photos: false,
     }

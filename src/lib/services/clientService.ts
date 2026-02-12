@@ -6,6 +6,8 @@ import { collection, doc, setDoc, getDocs, getDoc, updateDoc, query, orderBy } f
 
 export interface Client {
     id: string;
+    locationId: string; // Multi-location link
+    companyId: string; // Multi-tenant company reference
     name: string;
     email?: string;
     phone?: string;
@@ -21,13 +23,18 @@ export interface Client {
 }
 
 export const clientService = {
-    async createClient(data: Omit<Client, 'id' | 'qrCode' | 'updatedAt' | 'synced'>) {
+    async createClient(data: Omit<Client, 'id' | 'qrCode' | 'updatedAt' | 'synced' | 'locationId' | 'companyId'> & { locationId?: string; companyId?: string }) {
         const id = uuidv4();
         const qrCode = `CLIENT:${id.substring(0, 8)}`;
         const now = new Date().toISOString();
+        const { authService } = await import('./authService');
+        const user = authService.getUser();
+        const companyId = data.companyId || user?.companyId || 'global';
 
         const newClient: Client = {
             ...data,
+            locationId: data.locationId || user?.locationId || 'main-gym',
+            companyId,
             id,
             qrCode,
             updatedAt: now,
@@ -48,6 +55,8 @@ export const clientService = {
                 photoUrl: data.photoUrl || null,
                 rtn: data.rtn || null,
                 dpi: data.dpi || null,
+                locationId: newClient.locationId,
+                companyId,
                 updatedAt: now
             });
         } catch (error) {
@@ -88,6 +97,8 @@ export const clientService = {
                         photoUrl: data.photoUrl,
                         rtn: data.rtn,
                         dpi: data.dpi,
+                        locationId: data.locationId || 'main-gym',
+                        companyId: data.companyId || 'global',
                         updatedAt: data.updatedAt,
                         synced: 1
                     };
@@ -102,7 +113,20 @@ export const clientService = {
         }
 
         const localDb = await getDB();
-        return localDb.getAll('clients');
+        const { authService } = await import('./authService');
+        const user = authService.getUser();
+
+        let clients = await localDb.getAll('clients');
+
+        if (user?.companyId) {
+            clients = await localDb.getAllFromIndex('clients', 'by-company', user.companyId);
+        }
+
+        // Ensure locationId exists for backward compatibility
+        return clients.map(client => ({
+            ...client,
+            locationId: client.locationId || 'main-gym'
+        }));
     },
 
     async getClient(id: string) {
@@ -122,6 +146,8 @@ export const clientService = {
                     photoUrl: data.photoUrl,
                     rtn: data.rtn,
                     dpi: data.dpi,
+                    locationId: data.locationId || 'main-gym',
+                    companyId: data.companyId || 'global',
                     updatedAt: data.updatedAt,
                     synced: 1
                 } as Client;
@@ -131,7 +157,14 @@ export const clientService = {
         }
 
         const localDb = await getDB();
-        return localDb.get('clients', id);
+        const client = await localDb.get('clients', id);
+        if (!client) return null;
+        // Ensure locationId and companyId exists for backward compatibility
+        return {
+            ...client,
+            locationId: client.locationId || 'main-gym',
+            companyId: client.companyId || 'global'
+        };
     },
 
     async updateClient(id: string, data: Partial<Omit<Client, 'id' | 'qrCode'>>) {
@@ -149,6 +182,7 @@ export const clientService = {
             if (data.photoUrl !== undefined) updates.photoUrl = data.photoUrl;
             if (data.rtn !== undefined) updates.rtn = data.rtn;
             if (data.dpi !== undefined) updates.dpi = data.dpi;
+            if (data.locationId !== undefined) updates.locationId = data.locationId;
 
             await updateDoc(doc(db, 'clients', id), updates);
         } catch (error) {
@@ -165,7 +199,8 @@ export const clientService = {
             ...client,
             ...data,
             updatedAt: now,
-            synced: firebaseError ? 0 : 1
+            synced: firebaseError ? 0 : 1,
+            locationId: data.locationId || client.locationId || 'main-gym'
         };
 
         await localDb.put('clients', updatedClient);
