@@ -106,7 +106,7 @@ export const Scanner = ({ onScan, onError, onClientPhoto }: ScannerProps) => {
                         <button
                             onClick={() => setIsClientPhotoMode(true)}
                             className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 ${isClientPhotoMode
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-primary text-white'
                                 : 'bg-gray-700 hover:bg-gray-600 text-white'
                                 }`}
                         >
@@ -148,7 +148,7 @@ export const Scanner = ({ onScan, onError, onClientPhoto }: ScannerProps) => {
                             setShowCamera(true);
                             setIsClientPhotoMode(true);
                         }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2"
+                        className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2"
                     >
                         <Camera className="w-4 h-4" />
                         Take Client Photo
@@ -171,7 +171,7 @@ export const Scanner = ({ onScan, onError, onClientPhoto }: ScannerProps) => {
                         <p className="text-sm font-medium mb-4">{scanError}</p>
                         <button
                             onClick={startScanning}
-                            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm transition"
+                            className="bg-primary hover:bg-primary/90 px-4 py-2 rounded-lg text-sm transition"
                         >
                             Retry Camera
                         </button>

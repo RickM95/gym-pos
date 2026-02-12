@@ -39,7 +39,7 @@ export default function BrandingSettingsPage() {
                 <button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white rounded-lg transition font-medium"
+                    className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary/90 disabled:bg-blue-800 text-white rounded-lg transition font-medium"
                 >
                     <Save size={20} />
                     {isSaving ? 'Saving...' : 'Save Changes'}
@@ -50,7 +50,7 @@ export default function BrandingSettingsPage() {
                 {/* Visual Identity */}
                 <div className="space-y-6">
                     <section className="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
-                        <div className="flex items-center gap-2 mb-4 text-blue-400">
+                        <div className="flex items-center gap-2 mb-4 text-primary">
                             <ImageIcon size={20} />
                             <h2 className="text-lg font-semibold text-white">Visual Identity</h2>
                         </div>
@@ -112,7 +112,7 @@ export default function BrandingSettingsPage() {
                             <div>
                                 <div className="flex justify-between items-center mb-1">
                                     <label className="block text-sm font-medium text-gray-400">Logo Scale</label>
-                                    <span className="text-xs text-blue-400">{Math.round((localConfig.logoScale || 1.0) * 100)}%</span>
+                                    <span className="text-xs text-primary">{Math.round((localConfig.logoScale || 1.0) * 100)}%</span>
                                 </div>
                                 <input
                                     type="range"

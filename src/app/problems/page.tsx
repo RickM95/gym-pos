@@ -78,12 +78,12 @@ export default function ProblemsPage() {
                                     </span>
                                 </td>
                                 <td className="p-3 text-sm">
-                                    <div>{log.user}</div>
-                                    <div className="text-xs text-green-800">[{log.role}]</div>
+                                    <div>{log.data?.user}</div>
+                                    <div className="text-xs text-green-800">[{log.data?.role}]</div>
                                 </td>
                                 <td className="p-3 font-bold">{log.message}</td>
-                                <td className="p-3 text-xs text-green-600 max-w-md truncate" title={log.details}>
-                                    {log.details || '-'}
+                                <td className="p-3 text-xs text-green-600 max-w-md truncate" title={log.data?.details}>
+                                    {log.data?.details || '-'}
                                 </td>
                             </tr>
                         ))}

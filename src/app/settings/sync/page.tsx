@@ -20,7 +20,7 @@ export default function SyncSettingsPage() {
         const db = await getDB();
         const allEvents = await db.getAll('events');
         // Sort by timestamp desc
-        setEvents((allEvents as any as SyncEvent[]).sort((a, b) => b.timestamp - a.timestamp));
+        setEvents((allEvents as any as SyncEvent[]).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
     };
 
     const handleForceSync = async () => {
@@ -57,7 +57,7 @@ export default function SyncSettingsPage() {
                         <button
                             onClick={handleForceSync}
                             disabled={loading}
-                            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            className="bg-primary hover:bg-primary/90 disabled:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
                         >
                             {loading ? <LoadingSpinner size="xs" /> : <RefreshCw size={18} />}
                             Force Sync
@@ -98,11 +98,11 @@ export default function SyncSettingsPage() {
                                                 <span className="bg-orange-900/30 text-orange-400 px-2 py-1 rounded text-xs border border-orange-900">Pending</span>
                                             )}
                                         </td>
-                                        <td className="p-4 font-mono text-gray-300">{event.type}</td>
+                                        <td className="p-4 font-mono text-gray-300">{event.eventType}</td>
                                         <td className="p-4 text-gray-500">{new Date(event.timestamp).toLocaleString()}</td>
                                         <td className="p-4 font-mono text-gray-500">
                                             {/* @ts-ignore */}
-                                            {event.payload?.id || 'N/A'}
+                                            {event.data?.id || 'N/A'}
                                         </td>
                                     </tr>
                                 ))}

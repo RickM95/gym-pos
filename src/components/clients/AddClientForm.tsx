@@ -83,6 +83,8 @@ export const AddClientForm = () => {
             // Create the client
             const newClient = await clientService.createClient({
                 name: formData.name,
+                locationId: 'main-gym', // Explicitly provide default or linked location
+                companyId: undefined, // TODO: Get from user context
                 phone: formData.phone,
                 email: formData.email,
                 notes: formData.notes,
@@ -105,7 +107,7 @@ export const AddClientForm = () => {
                     image: formData.paymentImage,
                     durationDays: formData.paymentMethod === 'COMPLIMENTARY' ? formData.complimentaryDuration : undefined,
                     adminName: user?.name || "Admin"
-                });
+                }, 'main-gym', undefined);
                 addNotification("success", "Client created and subscription activated!");
             } else {
                 addNotification("success", "Client created successfully!");
@@ -126,7 +128,7 @@ export const AddClientForm = () => {
                 <Link href="/clients" className="text-gray-400 hover:text-white flex items-center gap-2 mb-2 text-sm">
                     <ArrowLeft size={16} /> Back to List
                 </Link>
-                <h1 className="text-3xl font-bold text-blue-500">Add New Client</h1>
+                <h1 className="text-3xl font-bold text-primary">Add New Client</h1>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6 bg-gray-800 p-8 rounded-2xl border border-gray-700 shadow-xl">
@@ -139,7 +141,7 @@ export const AddClientForm = () => {
                             required
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 pl-10 text-white focus:outline-none focus:border-blue-500 transition"
+                            className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 pl-10 text-white focus:outline-none focus:border-primary transition"
                             placeholder="Client's full name"
                         />
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
@@ -153,7 +155,7 @@ export const AddClientForm = () => {
                         <button
                             type="button"
                             onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                            className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 text-white flex justify-between items-center hover:border-blue-500 transition"
+                            className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 text-white flex justify-between items-center hover:border-primary transition"
                         >
                             <span className="flex items-center gap-2">
                                 <span className="text-xl">{selectedCountry.flag}</span>
@@ -170,7 +172,7 @@ export const AddClientForm = () => {
                                         placeholder="Search country..."
                                         value={countrySearch}
                                         onChange={(e) => setCountrySearch(e.target.value)}
-                                        className="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-3 text-sm text-white focus:outline-none focus:border-blue-500"
+                                        className="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-3 text-sm text-white focus:outline-none focus:border-primary"
                                         autoFocus
                                     />
                                 </div>
@@ -206,7 +208,7 @@ export const AddClientForm = () => {
                                 type="tel"
                                 value={formData.phone}
                                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 pl-10 text-white focus:outline-none focus:border-blue-500 transition"
+                                className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 pl-10 text-white focus:outline-none focus:border-primary transition"
                                 placeholder="Enter phone number"
                             />
                             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
@@ -245,14 +247,14 @@ export const AddClientForm = () => {
                             <button
                                 type="button"
                                 onClick={() => setShowCamera(true)}
-                                className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-700 rounded-xl hover:border-blue-500 hover:bg-gray-700/30 transition group"
+                                className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-700 rounded-xl hover:border-primary hover:bg-gray-700/30 transition group"
                             >
-                                <Camera className="w-8 h-8 text-gray-500 group-hover:text-blue-400 mb-2" />
+                                <Camera className="w-8 h-8 text-gray-500 group-hover:text-primary mb-2" />
                                 <span className="text-sm font-medium">Take photo with camera</span>
                             </button>
 
-                            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-700 rounded-xl hover:border-blue-500 hover:bg-gray-700/30 transition group cursor-pointer">
-                                <Upload className="w-8 h-8 text-gray-500 group-hover:text-blue-400 mb-2" />
+                            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-700 rounded-xl hover:border-primary hover:bg-gray-700/30 transition group cursor-pointer">
+                                <Upload className="w-8 h-8 text-gray-500 group-hover:text-primary mb-2" />
                                 <span className="text-sm font-medium">Upload photo from device</span>
                                 <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
                             </label>
@@ -268,7 +270,7 @@ export const AddClientForm = () => {
                             rows={3}
                             value={formData.notes}
                             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                            className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 pl-10 text-white focus:outline-none focus:border-blue-500 transition resize-none"
+                            className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 pl-10 text-white focus:outline-none focus:border-primary transition resize-none"
                             placeholder="Add health notes, goals, or preferences..."
                         />
                         <FileText className="absolute left-3 top-3 text-gray-500" size={18} />
@@ -282,7 +284,7 @@ export const AddClientForm = () => {
                         <select
                             value={formData.planId}
                             onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
-                            className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 pl-10 text-white focus:outline-none focus:border-blue-500 transition appearance-none"
+                            className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 pl-10 text-white focus:outline-none focus:border-primary transition appearance-none"
                         >
                             <option value="">Select a plan</option>
                             {plans.map(plan => (
@@ -303,7 +305,7 @@ export const AddClientForm = () => {
                 {formData.planId && (
                     <div className="space-y-6 p-6 bg-gray-900/50 rounded-2xl border border-gray-700 animate-in fade-in slide-in-from-top-4 duration-300">
                         <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-                            <CreditCard className="text-blue-500" size={20} />
+                            <CreditCard className="text-primary" size={20} />
                             Payment Confirmation
                         </h3>
 
@@ -312,7 +314,7 @@ export const AddClientForm = () => {
                                 type="button"
                                 onClick={() => setFormData({ ...formData, paymentMethod: 'CASH', paymentReference: '' })}
                                 className={`p-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${formData.paymentMethod === 'CASH'
-                                    ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                                    ? 'bg-primary/20 border-primary text-primary'
                                     : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
                                     }`}
                             >
@@ -323,7 +325,7 @@ export const AddClientForm = () => {
                                 type="button"
                                 onClick={() => setFormData({ ...formData, paymentMethod: 'TRANSFER' })}
                                 className={`p-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${formData.paymentMethod === 'TRANSFER'
-                                    ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                                    ? 'bg-primary/20 border-primary text-primary'
                                     : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
                                     }`}
                             >
@@ -334,7 +336,7 @@ export const AddClientForm = () => {
                                 type="button"
                                 onClick={() => setFormData({ ...formData, paymentMethod: 'POS', paymentReference: '' })}
                                 className={`p-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${formData.paymentMethod === 'POS'
-                                    ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                                    ? 'bg-primary/20 border-primary text-primary'
                                     : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
                                     }`}
                             >
@@ -421,7 +423,7 @@ export const AddClientForm = () => {
                                         required
                                         value={formData.paymentReference}
                                         onChange={(e) => setFormData({ ...formData, paymentReference: e.target.value })}
-                                        className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-blue-500"
+                                        className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-primary"
                                         placeholder="Enter transaction reference"
                                     />
                                 </div>
@@ -441,7 +443,7 @@ export const AddClientForm = () => {
                                                 </button>
                                             </div>
                                         ) : (
-                                            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-700 rounded-xl hover:border-blue-500 transition cursor-pointer">
+                                            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-700 rounded-xl hover:border-primary transition cursor-pointer">
                                                 <Upload size={24} className="text-gray-500 mb-2" />
                                                 <span className="text-xs text-gray-400">Upload screenshot</span>
                                                 <input
@@ -478,7 +480,7 @@ export const AddClientForm = () => {
                 <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/30 transition flex items-center justify-center gap-3 disabled:opacity-50"
+                    className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/30 transition flex items-center justify-center gap-3 disabled:opacity-50"
                 >
                     {isLoading ? (
                         <LoadingSpinner message="Enlisting Spartan..." />

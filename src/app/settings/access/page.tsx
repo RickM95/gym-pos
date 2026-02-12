@@ -43,7 +43,7 @@ export default function AccessControlPage() {
         });
     };
 
-const handleSave = async () => {
+    const handleSave = async () => {
         if (!permissions) return;
         setSaving(true);
         try {
@@ -68,7 +68,7 @@ const handleSave = async () => {
                 <Shield size={64} className="text-red-500 mb-4" />
                 <h1 className="text-2xl font-bold">Access Denied</h1>
                 <p className="text-gray-400 mb-8">Only Administrators can modify access controls.</p>
-                <Link href="/" className="text-blue-400 hover:underline">Return to Dashboard</Link>
+                <Link href="/" className="text-primary hover:underline">Return to Dashboard</Link>
             </div>
         );
     }
@@ -107,7 +107,7 @@ const handleSave = async () => {
                                     <tr key={item.id} className="hover:bg-gray-700/30 transition">
                                         <td className="p-4 font-medium text-gray-200">
                                             <div className="flex items-center gap-2">
-                                                {item.id === 'edit_photos' && <Camera size={16} className="text-blue-400" />}
+                                                {item.id === 'edit_photos' && <Camera size={16} className="text-primary" />}
                                                 {item.label}
                                             </div>
                                         </td>
@@ -133,21 +133,20 @@ const handleSave = async () => {
                     <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 mt-8">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
-                                <Users className="text-blue-400" size={24} />
+                                <Users className="text-primary" size={24} />
                                 <h2 className="text-xl font-bold text-white">Staff Photo Management</h2>
                             </div>
                             <button
                                 onClick={() => setShowStaffPhotoMode(!showStaffPhotoMode)}
-                                className={`px-4 py-2 rounded-lg font-medium ${
-                                    showStaffPhotoMode 
-                                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                className={`px-4 py-2 rounded-lg font-medium ${showStaffPhotoMode
+                                        ? 'bg-primary hover:bg-primary/90 text-white'
                                         : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                }`}
+                                    }`}
                             >
                                 {showStaffPhotoMode ? 'Hide' : 'Show'} Photo Editor
                             </button>
                         </div>
-                        
+
                         {showStaffPhotoMode && (
                             <div className="text-sm text-gray-400 mb-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
                                 <p className="mb-2">📸 <strong>Admin Photo Editing Access:</strong></p>

@@ -129,7 +129,7 @@ export const ClientCard = ({ client, onUpdate }: ClientCardProps) => {
                 image: paymentImage,
                 durationDays: durationDays,
                 adminName: user?.name || "Admin"
-            });
+            }, client.locationId, client.companyId);
 
             await loadSubscriptionData();
             setShowRenewModal(false);
@@ -241,7 +241,7 @@ export const ClientCard = ({ client, onUpdate }: ClientCardProps) => {
                         {activeSub && (
                             <div className="md:col-span-1 space-y-1">
                                 <p className="text-gray-500">Subscription</p>
-                                <p className="font-semibold text-blue-400">{activeSub.planName}</p>
+                                <p className="font-semibold text-primary">{activeSub.planName}</p>
                             </div>
                         )}
 
@@ -295,7 +295,7 @@ export const ClientCard = ({ client, onUpdate }: ClientCardProps) => {
 
                     <button
                         onClick={() => setShowRenewModal(true)}
-                        className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2"
+                        className="px-3 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2"
                     >
                         <RefreshCw size={12} />
                         Renew/Change
@@ -339,10 +339,10 @@ export const ClientCard = ({ client, onUpdate }: ClientCardProps) => {
                                             className="w-full flex justify-between items-center p-4 rounded-xl border border-gray-800 bg-gray-800/50 hover:bg-gray-800 hover:border-blue-500 hover:scale-[1.02] transition-all group"
                                         >
                                             <div className="text-left">
-                                                <div className="font-bold text-white group-hover:text-blue-400">{plan.name}</div>
+                                                <div className="font-bold text-white group-hover:text-primary">{plan.name}</div>
                                                 <div className="text-xs text-gray-400">{plan.durationDays} Days</div>
                                             </div>
-                                            <div className="text-blue-400 font-bold text-lg">${plan.price}</div>
+                                            <div className="text-primary font-bold text-lg">${plan.price}</div>
                                         </button>
                                     ))}
                                     {user?.role === 'ADMIN' && (
@@ -423,7 +423,7 @@ export const ClientCard = ({ client, onUpdate }: ClientCardProps) => {
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-gray-400 text-sm">Method</span>
-                                        <span className="text-blue-400 font-bold">{paymentMethod}</span>
+                                        <span className="text-primary font-bold">{paymentMethod}</span>
                                     </div>
                                 </div>
 
@@ -455,7 +455,7 @@ export const ClientCard = ({ client, onUpdate }: ClientCardProps) => {
                                             </div>
                                         ) : (
                                             <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-700 rounded-xl hover:border-blue-500 hover:bg-gray-800 transition cursor-pointer group">
-                                                <Camera className="w-8 h-8 text-gray-600 group-hover:text-blue-400 mb-2" />
+                                                <Camera className="w-8 h-8 text-gray-600 group-hover:text-primary mb-2" />
                                                 <span className="text-sm text-gray-500 group-hover:text-gray-300">Upload screenshot</span>
                                                 <input
                                                     type="file"
@@ -540,7 +540,7 @@ export const ClientCard = ({ client, onUpdate }: ClientCardProps) => {
                                     <button
                                         onClick={handleRenew}
                                         disabled={renewing || ((paymentMethod === 'TRANSFER' || paymentMethod === 'POS') && !paymentReference)}
-                                        className="flex-[2] bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                                        className="flex-[2] bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition flex items-center justify-center gap-2 disabled:opacity-50"
                                     >
                                         {renewing ? <LoadingSpinner size="xs" /> : <Check size={20} />}
                                         Confirm & Activate

@@ -28,6 +28,7 @@ export default function StaffPage() {
 
     const [formData, setFormData] = useState({
         name: "",
+        username: "",
         pin: "",
         role: "STAFF"
     });
@@ -50,7 +51,7 @@ export default function StaffPage() {
     };
 
     const resetForm = () => {
-        setFormData({ name: "", pin: "", role: "STAFF" });
+        setFormData({ name: "", username: "", pin: "", role: "STAFF" });
         setPermissions({});
         setPhotoUrl(null);
         setEditingStaff(null);
@@ -68,6 +69,7 @@ export default function StaffPage() {
     const handleEditStaff = (staffMember: StaffMember) => {
         setFormData({
             name: staffMember.name,
+            username: staffMember.username || "",
             pin: staffMember.pin,
             role: staffMember.role
         });
@@ -78,8 +80,8 @@ export default function StaffPage() {
     };
 
     const handleSave = async () => {
-        if (!formData.name || !formData.pin || formData.pin.length !== 4) {
-            addNotification("warning", "Please fill in all fields. PIN must be 4 digits.", 4000);
+        if (!formData.name || !formData.username || !formData.pin || formData.pin.length !== 4) {
+            addNotification("warning", "Please fill in all fields (Name, Username, PIN). PIN must be 4 digits.", 4000);
             return;
         }
 
@@ -88,7 +90,11 @@ export default function StaffPage() {
             const staffData = {
                 ...formData,
                 permissions: permissions as Record<PermissionKey, boolean>,
-                photoUrl: photoUrl || undefined
+                photoUrl: photoUrl || undefined,
+                locationId: 'main-gym',
+                hireDate: new Date().toISOString(),
+                email: '',
+                phone: ''
             };
 
             if (editingStaff) {
@@ -96,7 +102,7 @@ export default function StaffPage() {
             } else {
                 await staffService.createStaff(staffData);
             }
-            
+
             setShowAddModal(false);
             resetForm();
             await loadStaff();
@@ -141,7 +147,7 @@ export default function StaffPage() {
                     <Shield size={64} className="text-red-500 mb-4" />
                     <h1 className="text-2xl font-bold">Access Denied</h1>
                     <p className="text-gray-400 mb-8">Only Administrators can modify access controls.</p>
-                    <Link href="/" className="text-blue-400 hover:underline">Return to Dashboard</Link>
+                    <Link href="/" className="text-primary hover:underline">Return to Dashboard</Link>
                 </div>
             </AppProviders>
         );
@@ -176,7 +182,7 @@ export default function StaffPage() {
                                 <div key={member.id} className="bg-gray-800 p-6 rounded-xl border border-gray-700">
                                     <div className="flex justify-between items-start">
                                         <div className="flex gap-4 flex-1">
-                                            <ProfilePicture 
+                                            <ProfilePicture
                                                 currentPhoto={member.photoUrl}
                                                 onPhotoChange={async (photoUrl) => {
                                                     if (canEditPhotos && photoUrl !== undefined) {
@@ -195,48 +201,48 @@ export default function StaffPage() {
                                             />
                                             <div className="flex-1">
                                                 <h3 className="text-xl font-bold text-white mb-2">{member.name}</h3>
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                                <div>
-                                                    <span className="text-gray-400">PIN:</span>
-                                                    <span className="ml-2 font-mono">{member.pin}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-400">Role:</span>
-                                                    <span className="ml-2">{member.role}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-400">Status:</span>
-                                                    <span className={`ml-2 ${member.isActive ? 'text-green-400' : 'text-red-400'}`}>
-                                                        {member.isActive ? 'Active' : 'Inactive'}
-                                                    </span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-400">Created:</span>
-                                                    <span className="ml-2">{new Date(member.createdAt).toLocaleDateString()}</span>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="mt-4">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Shield size={16} className="text-gray-400" />
-                                                    <span className="text-sm font-medium text-gray-300">Permissions:</span>
-                                                </div>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {PERMISSION_ITEMS.filter(item => member.permissions[item.id]).map(item => (
-                                                        <span key={item.id} className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded">
-                                                            {item.label}
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                                    <div>
+                                                        <span className="text-gray-400">PIN:</span>
+                                                        <span className="ml-2 font-mono">{member.pin}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-400">Role:</span>
+                                                        <span className="ml-2">{member.role}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-400">Status:</span>
+                                                        <span className={`ml-2 ${member.isActive ? 'text-green-400' : 'text-red-400'}`}>
+                                                            {member.isActive ? 'Active' : 'Inactive'}
                                                         </span>
-                                                    ))}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-400">Created:</span>
+                                                        <span className="ml-2">{new Date(member.createdAt).toLocaleDateString()}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-4">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Shield size={16} className="text-gray-400" />
+                                                        <span className="text-sm font-medium text-gray-300">Permissions:</span>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {PERMISSION_ITEMS.filter(item => member.permissions[item.id]).map(item => (
+                                                            <span key={item.id} className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded">
+                                                                {item.label}
+                                                            </span>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
+
                                         </div>
-                                        
-                                        </div>
-                                        
+
                                         <div className="flex gap-2 ml-4">
                                             <button
                                                 onClick={() => handleEditStaff(member)}
-                                                className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+                                                className="p-2 bg-primary hover:bg-primary/90 rounded-lg text-white"
                                             >
                                                 <Edit size={16} />
                                             </button>
@@ -275,23 +281,32 @@ export default function StaffPage() {
                                 <div className="space-y-6">
                                     {canEditPhotos && (
                                         <div className="flex justify-center mb-6">
-                                            <ProfilePicture 
+                                            <ProfilePicture
                                                 currentPhoto={photoUrl || undefined}
                                                 onPhotoChange={setPhotoUrl}
                                                 size={120}
                                             />
                                         </div>
                                     )}
-                                    
+
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-400 mb-2">Name *</label>
                                             <input
                                                 type="text"
                                                 className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-green-500"
-                                                value={formData.name}
-                                                onChange={e => setFormData({ ...formData, name: e.target.value })}
                                                 placeholder="Staff member name"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-400 mb-2">Username *</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-green-500"
+                                                value={formData.username}
+                                                onChange={e => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/\s/g, '') })}
+                                                placeholder="jdoe"
+                                                disabled={!!editingStaff}
                                             />
                                         </div>
                                         <div>

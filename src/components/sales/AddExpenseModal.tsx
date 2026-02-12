@@ -37,6 +37,7 @@ export default function AddExpenseModal({ onClose, onSave }: AddExpenseModalProp
                 paymentMethod: formData.paymentMethod as any,
                 notes: formData.notes,
                 createdBy: 'current-user', // TODO: Get from auth context
+                locationId: 'main-gym'
             });
             onSave();
             onClose();

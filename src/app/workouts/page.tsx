@@ -38,7 +38,7 @@ export default function WorkoutsPage() {
                             </Link>
                             <h1 className="text-3xl font-bold text-blue-500">Workouts</h1>
                             <Link href="/workouts/create">
-                                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                                <button className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                                     <Plus size={20} /> Build Workout
                                 </button>
                             </Link>
@@ -49,9 +49,9 @@ export default function WorkoutsPage() {
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {workouts.map(w => (
-                                    <div key={w.id} className="bg-gray-800 p-6 rounded-xl border border-gray-700 hover:border-blue-500 transition cursor-pointer group">
+                                    <div key={w.id} className="bg-gray-800 p-6 rounded-xl border border-gray-700 hover:border-primary transition cursor-pointer group">
                                         <div className="flex items-start justify-between mb-4">
-                                            <div className="p-3 bg-blue-900/20 text-blue-400 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition">
+                                            <div className="p-3 bg-blue-900/20 text-primary rounded-lg group-hover:bg-blue-600 group-hover:text-white transition">
                                                 <ClipboardList size={24} />
                                             </div>
                                             <span className="text-sm text-gray-500">{w.exercises.length} Exercises</span>
@@ -59,7 +59,7 @@ export default function WorkoutsPage() {
                                         <h3 className="text-xl font-bold mb-2">{w.name}</h3>
                                         <ul className="text-sm text-gray-400 space-y-1">
                                             {w.exercises.slice(0, 3).map((ex, i) => (
-                                                <li key={i}>• {ex.name} ({ex.sets}x{ex.reps})</li>
+                                                 <li key={i}>• Exercise {ex.exerciseId} ({ex.sets}x{ex.reps})</li>
                                             ))}
                                             {w.exercises.length > 3 && <li>... +{w.exercises.length - 3} more</li>}
                                         </ul>

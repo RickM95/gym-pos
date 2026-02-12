@@ -42,14 +42,14 @@ export default function CreateSessionPage() {
         // Initialize logs based on workout template
         const initialLogs: Record<string, SessionLog[]> = {};
         workout.exercises.forEach((ex, exIndex) => {
-            initialLogs[ex.id] = Array.from({ length: ex.sets }).map((_, setIndex) => ({
-                exerciseId: ex.id,
-                exerciseName: ex.name,
-                setNumber: setIndex + 1,
-                reps: ex.reps, // Default to target
-                weight: 0,
-                notes: ex.notes
-            }));
+             initialLogs[ex.exerciseId] = Array.from({ length: ex.sets }).map((_, setIndex) => ({
+                 exerciseId: ex.exerciseId,
+                 exerciseName: ex.exerciseId, // TODO: Fetch actual exercise name
+                 setNumber: setIndex + 1,
+                 reps: ex.reps, // Default to target
+                 weight: 0,
+                 notes: ex.notes
+             }));
         });
         setLogs(initialLogs);
         setStep(2);
@@ -149,8 +149,8 @@ export default function CreateSessionPage() {
 
                         <div className="space-y-6">
                             {selectedWorkout.exercises.map((ex) => (
-                                <div key={ex.id} className="bg-gray-800 p-4 rounded-xl border border-gray-700">
-                                    <h3 className="font-bold mb-3 text-lg text-blue-400">{ex.name}</h3>
+                                 <div key={ex.exerciseId} className="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                                     <h3 className="font-bold mb-3 text-lg text-blue-400">Exercise {ex.exerciseId}</h3>
                                     <div className="space-y-2">
                                         <div className="grid grid-cols-6 gap-2 text-xs text-gray-500 text-center mb-1">
                                             <div className="col-span-1">Set</div>
@@ -158,7 +158,7 @@ export default function CreateSessionPage() {
                                             <div className="col-span-2">Reps</div>
                                             <div className="col-span-1"></div>
                                         </div>
-                                        {logs[ex.id]?.map((log, setIndex) => (
+                                         {logs[ex.exerciseId]?.map((log, setIndex) => (
                                             <div key={setIndex} className="grid grid-cols-6 gap-2 items-center">
                                                 <div className="col-span-1 text-center font-mono text-gray-400">{setIndex + 1}</div>
                                                 <div className="col-span-2">
@@ -166,7 +166,7 @@ export default function CreateSessionPage() {
                                                         type="number"
                                                         className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-center"
                                                         value={log.weight}
-                                                        onChange={e => updateLog(ex.id, setIndex, 'weight', parseFloat(e.target.value))}
+                                                         onChange={e => updateLog(ex.exerciseId, setIndex, 'weight', parseFloat(e.target.value))}
                                                     />
                                                 </div>
                                                 <div className="col-span-2">
@@ -174,7 +174,7 @@ export default function CreateSessionPage() {
                                                         type="number"
                                                         className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-center"
                                                         value={log.reps}
-                                                        onChange={e => updateLog(ex.id, setIndex, 'reps', parseFloat(e.target.value))}
+                                                         onChange={e => updateLog(ex.exerciseId, setIndex, 'reps', parseFloat(e.target.value))}
                                                     />
                                                 </div>
                                                 <div className="col-span-1 text-center text-green-500">

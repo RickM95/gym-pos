@@ -125,7 +125,7 @@ export default function SalesExpenseManager() {
     const getPaymentMethodIcon = (method: string) => {
         switch (method) {
             case 'CASH': return <DollarSign size={16} className="text-green-400" />;
-            case 'CARD': return <CreditCard size={16} className="text-blue-400" />;
+            case 'CARD': return <CreditCard size={16} className="text-primary" />;
             case 'TRANSFER': return <TrendingUp size={16} className="text-purple-400" />;
             default: return <Receipt size={16} className="text-gray-400" />;
         }
@@ -133,7 +133,7 @@ export default function SalesExpenseManager() {
 
     const getCategoryColor = (category: string) => {
         const colors: Record<string, string> = {
-            'RENT': 'bg-blue-900/50 text-blue-400',
+            'RENT': 'bg-blue-900/50 text-primary',
             'UTILITIES': 'bg-yellow-900/50 text-yellow-400',
             'SALARIES': 'bg-purple-900/50 text-purple-400',
             'EQUIPMENT': 'bg-green-900/50 text-green-400',
@@ -175,7 +175,7 @@ export default function SalesExpenseManager() {
                     <select
                         value={dateFilter}
                         onChange={(e) => setDateFilter(e.target.value)}
-                        className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
                     >
                         <option value="week">Last Week</option>
                         <option value="month">This Month</option>
@@ -215,8 +215,8 @@ export default function SalesExpenseManager() {
 
                 <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
                     <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                            <DollarSign size={20} className="text-blue-400" />
+                        <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                            <DollarSign size={20} className="text-primary" />
                         </div>
                         <div className={`flex items-center gap-1 text-sm font-medium ${totals.netProfit >= 0 ? 'text-green-400' : 'text-red-400'
                             }`}>
@@ -259,7 +259,7 @@ export default function SalesExpenseManager() {
                             key={id}
                             onClick={() => setActiveTab(id as any)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition ${activeTab === id
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-primary text-white'
                                 : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'
                                 }`}
                         >
@@ -276,7 +276,7 @@ export default function SalesExpenseManager() {
                         placeholder="Search..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                        className="pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary w-64"
                     />
                 </div>
             </div>
@@ -369,7 +369,7 @@ export default function SalesExpenseManager() {
                         <h3 className="text-lg font-bold text-white">Sales Transactions</h3>
                         <button
                             onClick={() => setShowSaleModal(true)}
-                            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
+                            className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
                         >
                             <Plus size={18} />
                             Add Sale
@@ -468,7 +468,7 @@ export default function SalesExpenseManager() {
                                                 {expense.category}
                                             </span>
                                             {expense.category === 'LOAN' && expense.originalAmount && (
-                                                <div className="mt-1 text-[10px] text-blue-400 font-bold">
+                                                <div className="mt-1 text-[10px] text-primary font-bold">
                                                     INT: {expense.interestRate}%
                                                 </div>
                                             )}

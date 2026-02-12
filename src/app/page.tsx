@@ -144,7 +144,7 @@ export default function Home() {
                 <div className="min-h-screen bg-gray-900 text-white p-6 pb-24">
                   <header className="mb-8 flex justify-between items-center max-w-4xl mx-auto w-full">
                     <div>
-                      <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                      <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
                         Spartan Gym
                       </h1>
                       <p className="text-gray-400">Member Portal</p>
@@ -178,7 +178,7 @@ export default function Home() {
             <div className="min-h-screen text-white p-6 pb-24 lg:pt-6 pt-16">
               <header className="mb-8 flex justify-between items-center max-w-6xl mx-auto w-full">
                 <div>
-                  <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                  <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
                     Spartan Gym
                   </h1>
                   <div className="flex items-center gap-4">
@@ -225,7 +225,7 @@ export default function Home() {
                           <div className="text-gray-400 text-sm mb-1 flex items-center gap-2">
                             <ScanLine size={16} /> Check-ins Today
                           </div>
-                          <div className="text-2xl font-bold text-blue-400">{stats.todaysCheckins}</div>
+                          <div className="text-2xl font-bold text-primary">{stats.todaysCheckins}</div>
                         </div>
 
                         {/* Est. Revenue */}
@@ -244,14 +244,13 @@ export default function Home() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {perms.check_in && (
                     <Link href="/scan" className="group">
-                      <div className="bg-gradient-to-br from-blue-900/50 to-blue-800/20 p-6 rounded-xl border border-blue-500/30 hover:border-blue-400 transition flex items-center justify-between">
+                      <div className="bg-gradient-to-br from-accent/20 to-accent/10 p-6 rounded-xl border border-accent/30 hover:border-accent transition flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="p-4 bg-blue-600 rounded-full text-white shadow-lg group-hover:scale-110 transition">
+                          <div className="p-4 bg-primary rounded-full text-white shadow-lg group-hover:scale-110 transition">
                             <ScanLine size={32} />
                           </div>
                           <div>
-                            <h2 className="text-xl font-bold text-blue-200">Quick Check-In</h2>
-                            <p className="text-blue-200/60 text-sm">Scan QR code for entry</p>
+                            <p className="text-primary/60 text-sm">Scan QR code for entry</p>
                           </div>
                         </div>
                       </div>
@@ -303,16 +302,16 @@ export default function Home() {
 
                   {/* Added Inventory Link */}
                   {(user.role === 'ADMIN' || perms.manage_inventory) && (
-                    <Link href="/inventory" className="bg-gray-800 p-4 rounded-xl border border-gray-700 hover:bg-gray-750 hover:border-blue-500 transition text-center">
-                      <Package className="mx-auto mb-2 text-blue-400" size={24} />
+                    <Link href="/inventory" className="bg-gray-800 p-4 rounded-xl border border-gray-700 hover:bg-gray-750 hover:border-primary transition text-center">
+                      <Package className="mx-auto mb-2 text-primary" size={24} />
                       <span className="font-semibold block">Inventory</span>
                     </Link>
                   )}
 
                   {/* Added Analytics Link */}
                   {(user.role === 'ADMIN' || perms.view_financials) && (
-                    <Link href="/analytics" className="bg-gray-800 p-4 rounded-xl border border-gray-700 hover:bg-gray-750 hover:border-blue-500 transition text-center">
-                      <BarChart3 className="mx-auto mb-2 text-blue-400" size={24} />
+                    <Link href="/analytics" className="bg-gray-800 p-4 rounded-xl border border-gray-700 hover:bg-gray-750 hover:border-primary transition text-center">
+                      <BarChart3 className="mx-auto mb-2 text-primary" size={24} />
                       <span className="font-semibold block">Analytics</span>
                     </Link>
                   )}
@@ -332,8 +331,8 @@ export default function Home() {
                   )}
 
                   {perms.sync_data && (
-                    <Link href="/settings/sync" className="bg-gray-800 p-4 rounded-xl border border-gray-700 hover:bg-gray-750 hover:border-blue-500 transition text-center">
-                      <Database className="mx-auto mb-2 text-blue-400" size={24} />
+                    <Link href="/settings/sync" className="bg-gray-800 p-4 rounded-xl border border-gray-700 hover:bg-gray-750 hover:border-primary transition text-center">
+                      <Database className="mx-auto mb-2 text-primary" size={24} />
                       <span className="font-semibold block">Sync Data</span>
                     </Link>
                   )}
@@ -364,8 +363,8 @@ export default function Home() {
 
                   {/* Reports Section */}
                   {(user?.permissions?.view_financials || user.role === 'ADMIN') && (
-                    <Link href="/reports" className="bg-gray-800 p-4 rounded-xl border border-gray-700 hover:bg-gray-750 hover:border-blue-500 transition text-center">
-                      <FileText className="mx-auto mb-2 text-blue-400" size={24} />
+                    <Link href="/reports" className="bg-gray-800 p-4 rounded-xl border border-gray-700 hover:bg-gray-750 hover:border-primary transition text-center">
+                      <FileText className="mx-auto mb-2 text-primary" size={24} />
                       <span className="font-semibold block">Reports</span>
                     </Link>
                   )}

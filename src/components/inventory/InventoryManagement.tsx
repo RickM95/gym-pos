@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { 
-    Plus, 
-    Search, 
-    Filter, 
-    Edit, 
+import {
+    Plus,
+    Search,
+    Filter,
+    Edit,
     Trash2,
     Eye,
     AlertTriangle,
@@ -51,7 +51,7 @@ export default function InventoryManagement() {
             setProducts(productsData);
             setCategories(categoriesData);
             setSuppliers(suppliersData);
-            
+
             // Initialize default categories if none exist
             if (categoriesData.length === 0) {
                 await initializeDefaultCategories();
@@ -76,7 +76,7 @@ export default function InventoryManagement() {
         for (const category of defaultCategories) {
             await inventoryService.createCategory(category);
         }
-        
+
         // Reload categories after initialization
         const categoriesData = await inventoryService.getCategories();
         setCategories(categoriesData);
@@ -86,7 +86,7 @@ export default function InventoryManagement() {
         let filtered = products;
 
         if (searchTerm) {
-            filtered = filtered.filter(p => 
+            filtered = filtered.filter(p =>
                 p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 p.sku.toLowerCase().includes(searchTerm.toLowerCase())
             );
@@ -136,7 +136,7 @@ export default function InventoryManagement() {
                 </div>
                 <button
                     onClick={() => setShowAddModal(true)}
-                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition"
+                    className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition"
                 >
                     <Plus size={18} />
                     Add Product
@@ -154,11 +154,10 @@ export default function InventoryManagement() {
                     <button
                         key={id}
                         onClick={() => setActiveTab(id as any)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-medium transition ${
-                            activeTab === id 
-                                ? 'bg-gray-800 text-white border-b-2 border-blue-500' 
-                                : 'text-gray-400 hover:text-white'
-                        }`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-medium transition ${activeTab === id
+                            ? 'bg-gray-800 text-white border-b-2 border-primary'
+                            : 'text-gray-400 hover:text-white'
+                            }`}
                     >
                         {icon}
                         {label}
@@ -181,14 +180,14 @@ export default function InventoryManagement() {
                                 placeholder="Search products or SKU..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
-                        
+
                         <select
                             value={selectedCategory}
                             onChange={(e) => setSelectedCategory(e.target.value)}
-                            className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
                         >
                             <option value="all">All Categories</option>
                             {categories.map(category => (
@@ -198,11 +197,10 @@ export default function InventoryManagement() {
 
                         <button
                             onClick={() => setLowStockOnly(!lowStockOnly)}
-                            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-                                lowStockOnly 
-                                    ? 'bg-yellow-600 text-white' 
-                                    : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'
-                            }`}
+                            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${lowStockOnly
+                                ? 'bg-yellow-600 text-white'
+                                : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'
+                                }`}
                         >
                             <AlertTriangle size={18} />
                             Low Stock Only
@@ -214,9 +212,9 @@ export default function InventoryManagement() {
                         {filteredProducts.map(product => {
                             const stockStatus = getStockStatus(product);
                             const profitMargin = calculateProfitMargin(product);
-                            
+
                             return (
-                                <div key={product.id} className="bg-gray-800 rounded-xl border border-gray-700 hover:border-gray-600 transition">
+                                <div key={product.id} className="bg-gray-800 rounded-xl border border-gray-700 hover:border-primary">
                                     <div className="p-6 space-y-4">
                                         {/* Header */}
                                         <div className="flex items-start justify-between">
@@ -224,11 +222,10 @@ export default function InventoryManagement() {
                                                 <h3 className="text-lg font-bold text-white">{product.name}</h3>
                                                 <p className="text-gray-400 text-sm">SKU: {product.sku}</p>
                                             </div>
-                                            <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                                                stockStatus.color === 'red' ? 'bg-red-900/50 text-red-400' :
+                                            <span className={`px-2 py-1 text-xs rounded-full font-medium ${stockStatus.color === 'red' ? 'bg-red-900/50 text-red-400' :
                                                 stockStatus.color === 'yellow' ? 'bg-yellow-900/50 text-yellow-400' :
-                                                'bg-green-900/50 text-green-400'
-                                            }`}>
+                                                    'bg-green-900/50 text-green-400'
+                                                }`}>
                                                 {stockStatus.status}
                                             </span>
                                         </div>
@@ -243,9 +240,8 @@ export default function InventoryManagement() {
                                         <div className="bg-gray-900/50 rounded-lg p-3 space-y-2">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-gray-400 text-sm">Current Stock</span>
-                                                <span className={`font-bold ${
-                                                    product.currentStock <= product.minStockLevel ? 'text-yellow-400' : 'text-white'
-                                                }`}>
+                                                <span className={`font-bold ${product.currentStock <= product.minStockLevel ? 'text-yellow-400' : 'text-white'
+                                                    }`}>
                                                     {product.currentStock} {product.unit}
                                                 </span>
                                             </div>
@@ -263,9 +259,9 @@ export default function InventoryManagement() {
 
                                         {/* Financial Information */}
                                         <div className="grid grid-cols-2 gap-3">
-                                            <div className="text-center p-2 bg-blue-950/30 rounded-lg">
-                                                <p className="text-blue-400 font-bold">{new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' }).format(product.unitPrice)}</p>
-                                                <p className="text-blue-300 text-xs">Price</p>
+                                            <div className="text-center p-2 bg-primary/20 rounded-lg">
+                                                <p className="text-primary font-bold">{new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' }).format(product.unitPrice)}</p>
+                                                <p className="text-primary/70 text-xs">Price</p>
                                             </div>
                                             <div className="text-center p-2 bg-green-950/30 rounded-lg">
                                                 <p className="text-green-400 font-bold">{profitMargin}%</p>
@@ -282,7 +278,7 @@ export default function InventoryManagement() {
                                                 <Edit size={16} />
                                                 Edit
                                             </button>
-                                            <button className="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg font-medium transition flex items-center justify-center gap-1">
+                                            <button className="flex-1 bg-primary hover:bg-primary/90 text-white px-3 py-2 rounded-lg font-medium transition flex items-center justify-center gap-1">
                                                 <Eye size={16} />
                                                 View
                                             </button>
@@ -308,7 +304,7 @@ export default function InventoryManagement() {
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {categories.map(category => (
-                            <div key={category.id} className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-gray-600 transition">
+                            <div key={category.id} className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-primary transition">
                                 <div className="flex items-start justify-between mb-4">
                                     <h3 className="text-lg font-bold text-white">{category.name}</h3>
                                     <div className="flex gap-1">
@@ -320,11 +316,11 @@ export default function InventoryManagement() {
                                         </button>
                                     </div>
                                 </div>
-                                
+
                                 {category.description && (
                                     <p className="text-gray-400 text-sm mb-4">{category.description}</p>
                                 )}
-                                
+
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-400">Products:</span>
                                     <span className="text-white font-medium">
@@ -333,10 +329,10 @@ export default function InventoryManagement() {
                                 </div>
                             </div>
                         ))}
-                        
+
                         <button
-                            onClick={() => {/* Add category modal */}}
-                            className="bg-gray-800 border-2 border-dashed border-gray-700 rounded-xl p-6 hover:border-gray-600 hover:bg-gray-750 transition flex flex-col items-center justify-center text-gray-400 hover:text-white"
+                            onClick={() => {/* Add category modal */ }}
+                            className="bg-gray-800 border-2 border-dashed border-gray-700 rounded-xl p-6 hover:border-primary hover:bg-gray-750 transition flex flex-col items-center justify-center text-gray-400 hover:text-white"
                         >
                             <Plus size={24} className="mb-2" />
                             <span className="font-medium">Add Category</span>
@@ -350,7 +346,7 @@ export default function InventoryManagement() {
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {suppliers.map(supplier => (
-                            <div key={supplier.id} className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-gray-600 transition">
+                            <div key={supplier.id} className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-primary transition">
                                 <div className="flex items-start justify-between mb-4">
                                     <div>
                                         <h3 className="text-lg font-bold text-white">{supplier.name}</h3>
@@ -367,7 +363,7 @@ export default function InventoryManagement() {
                                         </button>
                                     </div>
                                 </div>
-                                
+
                                 <div className="space-y-2 text-sm">
                                     {supplier.email && (
                                         <div className="flex items-center gap-2">
@@ -388,7 +384,7 @@ export default function InventoryManagement() {
                                         </div>
                                     )}
                                 </div>
-                                
+
                                 <div className="mt-4 pt-4 border-t border-gray-700">
                                     <div className="flex items-center justify-between text-sm">
                                         <span className="text-gray-400">Active Products:</span>
@@ -399,10 +395,10 @@ export default function InventoryManagement() {
                                 </div>
                             </div>
                         ))}
-                        
+
                         <button
-                            onClick={() => {/* Add supplier modal */}}
-                            className="bg-gray-800 border-2 border-dashed border-gray-700 rounded-xl p-6 hover:border-gray-600 hover:bg-gray-750 transition flex flex-col items-center justify-center text-gray-400 hover:text-white"
+                            onClick={() => {/* Add supplier modal */ }}
+                            className="bg-gray-800 border-2 border-dashed border-gray-700 rounded-xl p-6 hover:border-primary hover:bg-gray-750 transition flex flex-col items-center justify-center text-gray-400 hover:text-white"
                         >
                             <Plus size={24} className="mb-2" />
                             <span className="font-medium">Add Supplier</span>
@@ -415,10 +411,10 @@ export default function InventoryManagement() {
             {activeTab === 'reports' && (
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-gray-600 transition cursor-pointer">
+                        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-primary transition cursor-pointer">
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                                    <Package className="text-blue-400" size={24} />
+                                <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                                    <Package className="text-primary" size={24} />
                                 </div>
                                 <div>
                                     <h3 className="text-white font-bold">Inventory Report</h3>
@@ -431,7 +427,7 @@ export default function InventoryManagement() {
                             </button>
                         </div>
 
-                        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-gray-600 transition cursor-pointer">
+                        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-primary transition cursor-pointer">
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
                                     <DollarSign className="text-green-400" size={24} />
@@ -447,7 +443,7 @@ export default function InventoryManagement() {
                             </button>
                         </div>
 
-                        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-gray-600 transition cursor-pointer">
+                        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-primary transition cursor-pointer">
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
                                     <TrendingUp className="text-purple-400" size={24} />

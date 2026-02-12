@@ -25,7 +25,7 @@ export default function CreateWorkoutPage() {
     const addExercise = (ex: Exercise) => {
         setSelectedExercises([
             ...selectedExercises,
-            { id: ex.id, name: ex.name, sets: 3, reps: 10 }
+             { exerciseId: ex.id, sets: 3, reps: 10 }
         ]);
         setIsAdding(false);
     };
@@ -45,7 +45,13 @@ export default function CreateWorkoutPage() {
 
     const handleSave = async () => {
         if (!name || selectedExercises.length === 0) return;
-        await workoutService.createWorkout(name, selectedExercises);
+         await workoutService.createWorkout({ 
+             name, 
+             exercises: selectedExercises,
+             difficulty: 'BEGINNER',
+             description: '',
+             duration: 0
+         });
         router.push("/workouts");
     };
 
@@ -83,7 +89,7 @@ export default function CreateWorkoutPage() {
                             <div key={i} className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex items-center gap-4 animate-in slide-in-from-bottom-2">
                                 <GripVertical className="text-gray-600 cursor-move" size={20} />
                                 <div className="flex-1">
-                                    <div className="font-bold mb-2">{ex.name}</div>
+                                     <div className="font-bold mb-2">{exercises.find(e => e.id === ex.exerciseId)?.name || ex.exerciseId}</div>
                                     <div className="flex gap-4">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm text-gray-400">Sets</span>
@@ -128,7 +134,7 @@ export default function CreateWorkoutPage() {
                                         className="w-full text-left p-2 hover:bg-gray-700 rounded flex justify-between"
                                     >
                                         <span>{ex.name}</span>
-                                        <span className="text-sm text-gray-500">{ex.muscleGroup}</span>
+                                         <span className="text-sm text-gray-500">{ex.muscleGroups.join(', ')}</span>
                                     </button>
                                 ))}
                                 {exercises.length === 0 && <div className="p-2 text-gray-500">Library empty. Go create exercises first.</div>}

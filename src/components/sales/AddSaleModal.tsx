@@ -129,7 +129,7 @@ export default function AddSaleModal({ onClose, onSave }: AddSaleModalProps) {
     const handleUnlockDiscount = async () => {
         setAuthError('');
         try {
-            const user = await authService.login(adminPin);
+            const user = await authService.login('admin', adminPin);
             if (user && (user.role === 'ADMIN' || user.role === 'TECH')) {
                 setDiscountLocked(false);
                 setShowAdminPin(false);
@@ -167,6 +167,7 @@ export default function AddSaleModal({ onClose, onSave }: AddSaleModalProps) {
                 paymentStatus: 'PAID', // Assuming immediate payment for POS
                 saleDate: new Date().toISOString(),
                 staffId: 'current-user', // TODO: Get from auth context
+                locationId: 'main-gym',
                 notes
             });
             onSave();
@@ -222,7 +223,7 @@ export default function AddSaleModal({ onClose, onSave }: AddSaleModalProps) {
                                 placeholder="Search products..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
-                                className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                                className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-primary"
                                 autoFocus
                             />
                         </div>
@@ -240,7 +241,7 @@ export default function AddSaleModal({ onClose, onSave }: AddSaleModalProps) {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-green-400 font-bold">L {product.unitPrice}</p>
-                                        <span className="text-xs text-blue-400 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 justify-end">
+                                        <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition flex items-center gap-1 justify-end">
                                             <Plus size={12} /> Add
                                         </span>
                                     </div>
@@ -256,7 +257,7 @@ export default function AddSaleModal({ onClose, onSave }: AddSaleModalProps) {
                             <select
                                 value={clientId}
                                 onChange={e => setClientId(e.target.value)}
-                                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm"
+                                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary text-sm"
                             >
                                 <option value="">Select Client (Optional)</option>
                                 {clients.map(client => (
@@ -314,7 +315,7 @@ export default function AddSaleModal({ onClose, onSave }: AddSaleModalProps) {
                                             {discountLocked ? (
                                                 <button
                                                     onClick={() => setShowAdminPin(true)}
-                                                    className="text-xs text-blue-400 flex items-center gap-1 hover:text-blue-300"
+                                                    className="text-xs text-primary flex items-center gap-1 hover:text-blue-300"
                                                 >
                                                     <Lock size={12} /> Unlock
                                                 </button>
@@ -368,7 +369,7 @@ export default function AddSaleModal({ onClose, onSave }: AddSaleModalProps) {
                                         </button>
                                         <button
                                             onClick={handleUnlockDiscount}
-                                            className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium"
+                                            className="flex-1 px-3 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium"
                                         >
                                             Unlock
                                         </button>
@@ -406,7 +407,7 @@ export default function AddSaleModal({ onClose, onSave }: AddSaleModalProps) {
                                 <button
                                     onClick={handleSubmit}
                                     disabled={loading || items.length === 0}
-                                    className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg px-4 py-2 font-bold flex items-center justify-center gap-2 transition"
+                                    className="bg-primary hover:bg-primary/90 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg px-4 py-2 font-bold flex items-center justify-center gap-2 transition"
                                 >
                                     {loading ? 'Processing...' : 'Complete Sale'}
                                 </button>

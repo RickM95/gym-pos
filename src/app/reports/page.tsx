@@ -111,7 +111,7 @@ export default function ReportsPage() {
                     <Shield size={64} className="text-red-500 mb-4" />
                     <h1 className="text-2xl font-bold">Access Denied</h1>
                     <p className="text-gray-400 mb-8">You don't have permission to access reports.</p>
-                    <Link href="/" className="text-blue-400 hover:underline">Return to Dashboard</Link>
+                    <Link href="/" className="text-primary hover:underline">Return to Dashboard</Link>
                 </div>
             </div>
         );
@@ -128,7 +128,7 @@ export default function ReportsPage() {
                             <div className="flex justify-between items-center mb-8">
                                 <div>
                                     <Link href="/" className="text-gray-400 hover:text-white mb-2 block">← Back to Dashboard</Link>
-                                    <h1 className="text-3xl font-bold text-blue-500">Reports & Analytics</h1>
+                                    <h1 className="text-3xl font-bold text-primary">Reports & Analytics</h1>
                                 </div>
                             </div>
 
@@ -172,7 +172,7 @@ export default function ReportsPage() {
                                                                         'bg-gray-900/30'
                                                             }`}>
                                                             {config.type === 'FINANCIAL' && <DollarSign className="text-green-400" size={24} />}
-                                                            {config.type === 'MEMBERSHIP' && <Users className="text-blue-400" size={24} />}
+                                                            {config.type === 'MEMBERSHIP' && <Users className="text-primary" size={24} />}
                                                             {config.type === 'ATTENDANCE' && <Clock className="text-purple-400" size={24} />}
                                                             {config.type === 'TAX' && <FileText className="text-yellow-400" size={24} />}
                                                         </div>
@@ -202,7 +202,7 @@ export default function ReportsPage() {
                                                             disabled={generating === config.id || (config.type === 'TAX' && generating === `tax_${config.id}`)}
                                                             className={`flex-1 px-3 py-2 rounded-lg font-medium transition ${generating === config.id || (config.type === 'TAX' && generating === `tax_${config.id}`)
                                                                 ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                                                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                                                : 'bg-primary hover:bg-primary/90 text-white'
                                                                 }`}
                                                         >
                                                             <Download size={16} className="inline mr-2" />
@@ -274,7 +274,7 @@ export default function ReportsPage() {
                                     {/* Compliance Information */}
                                     <div className="mt-8 bg-gray-800 p-6 rounded-xl border border-gray-700">
                                         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                                            <Shield size={20} className="text-blue-400" />
+                                            <Shield size={20} className="text-primary" />
                                             Honduran Tax Guidance & Informational Calculations
                                         </h3>
                                         <div className="text-sm text-gray-400 space-y-2">

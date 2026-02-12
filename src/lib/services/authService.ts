@@ -4,7 +4,7 @@ import { clientAuthService } from './clientAuthService';
 import { marketplaceService } from './marketplaceService';
 import { corporateService } from './corporateService';
 
-export type UserRole = 'ADMIN' | 'TRAINER' | 'STAFF' | 'CLIENT' | 'TECH' | 'FRONT_DESK' | 'ACCOUNTANT' | 'AUDITOR';
+export type UserRole = 'ADMIN' | 'TRAINER' | 'STAFF' | 'CLIENT' | 'TECH' | 'FRONT_DESK' | 'ACCOUNTANT' | 'AUDITOR' | 'PLATFORM_ADMIN';
 
 export interface User {
     id: string;
@@ -97,9 +97,72 @@ export const authService = {
             if (error instanceof Error && error.message.includes('attempts')) throw error;
         }
 
+        // 3. Check Platform Admin
+        try {
+            const { platformAdminService } = await import('./platformAdminService');
+            // Use PIN validation for platform admins
+            const platformAdmin = await platformAdminService.validatePlatformAdminPin(username, pin);
+
+            if (platformAdmin) {
+                (this as any).resetFailedAttempts();
+                const user: User = {
+                    id: platformAdmin.id,
+                    name: platformAdmin.name,
+                    username: platformAdmin.username,
+                    role: 'PLATFORM_ADMIN',
+                    locationId: 'platform',
+                    companyId: 'platform',
+                    isActive: platformAdmin.isActive,
+                    photoUrl: platformAdmin.photoUrl
+                };
+
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+                }
+                return user;
+            }
+        } catch (error) {
+            console.error('[authService] Platform admin login error:', error);
+        }
+
         (this as any).recordFailedAttempt();
         return null;
     },
+
+    async loginWithPassword(identifier: string, password: string): Promise<User | null> {
+        const username = identifier.toLowerCase().trim();
+        console.log('[authService] Password login attempt for:', username);
+
+        try {
+            const { platformAdminService } = await import('./platformAdminService');
+            // Use Password validation for platform admins
+            const platformAdmin = await platformAdminService.validatePlatformAdmin(username, password);
+
+            if (platformAdmin) {
+                (this as any).resetFailedAttempts();
+                const user: User = {
+                    id: platformAdmin.id,
+                    name: platformAdmin.name,
+                    username: platformAdmin.username,
+                    role: 'PLATFORM_ADMIN',
+                    locationId: 'platform',
+                    companyId: 'platform',
+                    isActive: platformAdmin.isActive,
+                    photoUrl: platformAdmin.photoUrl
+                };
+
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+                }
+                return user;
+            }
+        } catch (error) {
+            console.error('[authService] Platform admin password login error:', error);
+        }
+
+        return null;
+    },
+
 
     recordFailedAttempt() {
         if (typeof window === 'undefined') return;

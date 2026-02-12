@@ -119,7 +119,7 @@ export default function ClientDetailsPage() {
                 method: 'CASH',
                 amount: plan?.price || 0,
                 adminName: user?.name || 'Admin'
-            });
+            }, client.locationId, client.companyId);
             await loadData(); // Reload to see new sub
             addNotification("success", "Subscription assigned successfully!", 3000);
         } catch (e) {

@@ -31,7 +31,7 @@ export default function SchedulingPage() {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const data = await schedulingService.getClasses('default'); // TODO: Support multi-location
+            const data = await schedulingService.getClasses('main-gym'); // TODO: Support multi-location
             setClasses(data as any);
         } catch (error) {
             console.error('Failed to load classes:', error);
@@ -42,9 +42,22 @@ export default function SchedulingPage() {
 
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+    // Helper function to extract time from ISO string
+    const formatTime = (isoString: string) => {
+        if (!isoString) return '--:--';
+        try {
+            return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch {
+            return '--:--';
+        }
+    };
+
     // Filter classes for the selected date's day of week
     const currentDayOfWeek = new Date(selectedDate).getDay();
-    const todaysClasses = classes.filter(c => c.daysOfWeek.includes(currentDayOfWeek) && c.isActive);
+    const todaysClasses = classes.filter(c => 
+        (c.schedule?.daysOfWeek?.includes(currentDayOfWeek) || false) && 
+        c.status === 'ACTIVE'
+    );
 
     return (
         <FeatureGate feature={FeatureKey.SCHEDULING} fallback={
@@ -65,7 +78,7 @@ export default function SchedulingPage() {
                     </div>
                     <button
                         onClick={() => setIsAddModalOpen(true)}
-                        className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition font-medium"
+                        className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition font-medium"
                     >
                         <Plus size={20} />
                         New Class
@@ -87,7 +100,7 @@ export default function SchedulingPage() {
                             <div className="mt-6 space-y-4">
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-400">Classes Today</span>
-                                    <span className="text-blue-400 font-bold">{todaysClasses.length}</span>
+                                    <span className="text-primary font-bold">{todaysClasses.length}</span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-400">Total Capacity</span>
@@ -96,8 +109,8 @@ export default function SchedulingPage() {
                             </div>
                         </div>
 
-                        <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-2xl">
-                            <h4 className="text-blue-400 font-semibold mb-2">Pro Tip</h4>
+                        <div className="bg-blue-600/10 border border-primary/20 p-6 rounded-2xl">
+                            <h4 className="text-primary font-semibold mb-2">Pro Tip</h4>
                             <p className="text-xs text-blue-300 leading-relaxed">
                                 Automated WhatsApp reminders are sent 1 hour before the class starts to all confirmed attendees.
                             </p>
@@ -108,7 +121,7 @@ export default function SchedulingPage() {
                     <div className="lg:col-span-3">
                         {isLoading ? (
                             <div className="flex items-center justify-center p-20">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                             </div>
                         ) : todaysClasses.length === 0 ? (
                             <div className="bg-gray-800/30 border-2 border-dashed border-gray-700 rounded-3xl p-20 text-center">
@@ -117,7 +130,7 @@ export default function SchedulingPage() {
                                 <p className="text-gray-500 mt-2">Create a new recurring class or select another date.</p>
                                 <button
                                     onClick={() => setIsAddModalOpen(true)}
-                                    className="mt-6 text-blue-400 hover:underline font-medium"
+                                    className="mt-6 text-primary hover:underline font-medium"
                                 >
                                     Add your first class →
                                 </button>
@@ -125,7 +138,7 @@ export default function SchedulingPage() {
                         ) : (
                             <div className="space-y-4">
                                 {todaysClasses
-                                    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                                    .sort((a, b) => a.startDate.localeCompare(b.startDate))
                                     .map(gymClass => (
                                         <div
                                             key={gymClass.id}
@@ -133,25 +146,25 @@ export default function SchedulingPage() {
                                         >
                                             <div className="flex items-center gap-6">
                                                 <div className="w-20 text-center">
-                                                    <span className="text-2xl font-bold text-white block">{gymClass.startTime}</span>
-                                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">{gymClass.endTime}</span>
+                                                    <span className="text-2xl font-bold text-white block">{formatTime(gymClass.startDate)}</span>
+                                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">{formatTime(gymClass.endDate)}</span>
                                                 </div>
                                                 <div className="w-px h-12 bg-gray-700 hidden md:block"></div>
                                                 <div>
-                                                    <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">
+                                                    <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">
                                                         {gymClass.name}
                                                     </h3>
                                                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                                                         <span className="flex items-center gap-1.5 text-sm text-gray-400">
                                                             <Users size={14} className="text-blue-500" />
-                                                            {gymClass.instructorName}
+                                                            Trainer {gymClass.instructorId}
                                                         </span>
                                                         <span className="flex items-center gap-1.5 text-sm text-gray-400">
                                                             <MapPin size={14} className="text-purple-500" />
                                                             Main Studio
                                                         </span>
                                                         <span className="px-2 py-0.5 bg-gray-700 text-[10px] rounded uppercase font-bold tracking-tighter text-gray-300">
-                                                            {gymClass.category}
+                                                            {gymClass.schedule?.category || 'Fitness'}
                                                         </span>
                                                     </div>
                                                 </div>

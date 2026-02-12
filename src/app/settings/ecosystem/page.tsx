@@ -14,7 +14,7 @@ import {
     Plus,
     Filter
 } from 'lucide-react';
-import { FeatureGate } from '@/components/auth/FeatureGate';
+import { FeatureGate } from '@/components/auth/FeatureProvider';
 import { FeatureKey } from '@/lib/constants/features';
 import { paymentService } from '@/lib/services/paymentService';
 import { insightsService } from '@/lib/services/insightsService';
@@ -80,7 +80,7 @@ const PaymentsSection = () => {
     const [stats, setStats] = useState<any>(null);
 
     useEffect(() => {
-        paymentService.getRevenueStats('default').then(setStats);
+        paymentService.getRevenueStats('main-gym').then(setStats);
     }, []);
 
     return (
@@ -96,14 +96,14 @@ const PaymentsSection = () => {
                 </div>
                 <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
                     <p className="text-sm text-gray-400">Estimated Commission (1%)</p>
-                    <h3 className="text-2xl font-bold text-blue-400 mt-1">${(stats?.totalVolume * 0.01).toFixed(2) || '0.00'}</h3>
+                    <h3 className="text-2xl font-bold text-primary mt-1">${(stats?.totalVolume * 0.01).toFixed(2) || '0.00'}</h3>
                 </div>
             </div>
 
             <div className="mt-8 bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
                 <div className="p-4 border-b border-gray-800 flex justify-between items-center">
                     <h4 className="font-medium text-white">Recent Transactions</h4>
-                    <button className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1">
+                    <button className="text-xs text-primary hover:text-blue-300 flex items-center space-x-1">
                         <Filter className="w-3 h-3" />
                         <span>Filter Ledger</span>
                     </button>
@@ -134,7 +134,7 @@ const MarketplaceSection = () => {
                     />
                 </div>
                 <div className="flex space-x-2">
-                    <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-xs rounded-full font-medium border border-blue-500/20">All Categories</span>
+                    <span className="px-3 py-1 bg-blue-500/10 text-primary text-xs rounded-full font-medium border border-blue-500/20">All Categories</span>
                     <span className="px-3 py-1 bg-gray-800/50 text-gray-400 text-xs rounded-full border border-gray-700">Supplements</span>
                     <span className="px-3 py-1 bg-gray-800/50 text-gray-400 text-xs rounded-full border border-gray-700">Equipment</span>
                 </div>
@@ -148,10 +148,10 @@ const MarketplaceSection = () => {
                                 {vendor.name[0]}
                             </div>
                             {vendor.sponsored && (
-                                <span className="text-[10px] uppercase font-bold tracking-wider text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">Sponsored</span>
+                                <span className="text-[10px] uppercase font-bold tracking-wider text-primary bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">Sponsored</span>
                             )}
                         </div>
-                        <h4 className="font-bold text-white group-hover:text-blue-400 transition-colors">{vendor.name}</h4>
+                        <h4 className="font-bold text-white group-hover:text-primary transition-colors">{vendor.name}</h4>
                         <p className="text-sm text-gray-400 mb-4">{vendor.category}</p>
                         <div className="flex items-center text-xs text-green-400 font-medium bg-green-500/10 w-fit px-2 py-1 rounded">
                             {(vendor.commissionRate * 100)}% Rev Share
@@ -200,7 +200,7 @@ const InsightsSection = () => {
                         </div>
                         <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
                             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Retention</h4>
-                            <p className="text-xl font-bold text-blue-400">{benchmarks?.avgRetentionMonths} mo</p>
+                            <p className="text-xl font-bold text-primary">{benchmarks?.avgRetentionMonths} mo</p>
                         </div>
                     </div>
                 </div>
@@ -210,7 +210,7 @@ const InsightsSection = () => {
                     <div className="space-y-4">
                         {benchmarks?.popularCategories.map((cat: string, i: number) => (
                             <div key={i} className="flex justify-between items-center group">
-                                <span className="text-sm text-gray-300 font-medium group-hover:text-blue-400 transition-colors uppercase tracking-wide">{cat}</span>
+                                <span className="text-sm text-gray-300 font-medium group-hover:text-primary transition-colors uppercase tracking-wide">{cat}</span>
                                 <div className="h-2 w-48 bg-gray-700/50 rounded-full overflow-hidden">
                                     <div className="h-full bg-blue-500 rounded-full" style={{ width: `${90 - (i * 15)}%` }}></div>
                                 </div>
@@ -237,7 +237,7 @@ const AcademySection = () => {
                             <course.icon className="w-12 h-12 text-gray-500 group-hover:text-blue-500 transition-colors" />
                         </div>
                         <div className="p-5 flex-1 flex flex-col">
-                            <h4 className="font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">{course.title}</h4>
+                            <h4 className="font-bold text-white mb-1 group-hover:text-primary transition-colors">{course.title}</h4>
                             <p className="text-xs text-gray-400 mb-4">{course.lessons} Progressive Lessons</p>
 
                             <div className="mt-auto pt-4">
@@ -273,7 +273,7 @@ const FinancingSection = () => {
                         <h3 className="text-xl font-bold text-white">Active Financing Portfolio</h3>
                         <p className="text-gray-400 text-sm">Monitor installment health and credit risk.</p>
                     </div>
-                    <button className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-500/20">
+                    <button className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-primary/20">
                         Configure APR Rules
                     </button>
                 </div>
@@ -281,7 +281,7 @@ const FinancingSection = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {[
                         { label: 'Total Financed', value: '$12,450', color: 'text-white' },
-                        { label: 'Active Contracts', value: '28', color: 'text-blue-400' },
+                        { label: 'Active Contracts', value: '28', color: 'text-primary' },
                         { label: 'Default Rate', value: '2.1%', color: 'text-red-400' },
                         { label: 'Revenue (Interest)', value: '$840', color: 'text-green-400' }
                     ].map((stat, i) => (
@@ -348,7 +348,7 @@ const TrainersSection = () => {
                         ].map((t, i) => (
                             <div key={i} className="flex justify-between items-center p-3 h-16 bg-gray-900/50 rounded-xl border border-gray-700/50 group">
                                 <div className="flex items-center space-x-3">
-                                    <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-all">
+                                    <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-primary group-hover:bg-blue-500 group-hover:text-white transition-all">
                                         {t.name[0]}
                                     </div>
                                     <span className="text-sm font-medium text-gray-300">{t.name}</span>
@@ -401,7 +401,7 @@ const CorporateSection = () => {
                             <p className="text-xs text-gray-400 mb-4">{corp.employees} Monthly Active Users</p>
                             <div className="pt-4 border-t border-gray-700/50 flex justify-between items-center">
                                 <span className="text-xs font-medium text-gray-500">{corp.plan}</span>
-                                <button className="text-blue-400 text-xs font-bold hover:underline">HR Reports →</button>
+                                <button className="text-primary text-xs font-bold hover:underline">HR Reports →</button>
                             </div>
                         </div>
                     ))}

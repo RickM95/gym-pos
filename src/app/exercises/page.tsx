@@ -13,12 +13,16 @@ export default function ExercisesPage() {
     const [filter, setFilter] = useState("All");
     const [search, setSearch] = useState("");
 
-    const [newExercise, setNewExercise] = useState({
+    const [newExercise, setNewExercise] = useState<Omit<Exercise, 'id' | 'createdAt' | 'updatedAt' | 'synced'>>({
         name: "",
         category: "Strength",
-        muscleGroup: "Chest",
-        videoUrl: ""
+        muscleGroups: ["Chest"],
+        difficulty: "BEGINNER",
+        equipment: "",
+        description: "",
+        mediaUrls: []
     });
+    const [videoUrl, setVideoUrl] = useState("");
 
     useEffect(() => {
         loadExercises();
@@ -33,16 +37,20 @@ export default function ExercisesPage() {
         e.preventDefault();
         if (!newExercise.name) return;
 
-        await workoutService.createExercise(newExercise);
+        await workoutService.createExercise({
+            ...newExercise,
+            mediaUrls: videoUrl ? [videoUrl] : []
+        });
 
-        setNewExercise({ name: "", category: "Strength", muscleGroup: "Chest", videoUrl: "" });
+        setNewExercise({ name: "", category: "Strength", muscleGroups: ["Chest"], difficulty: "BEGINNER", equipment: "", description: "", mediaUrls: [] });
+        setVideoUrl("");
         setShowForm(false);
         loadExercises();
     };
 
     const filtered = exercises.filter(ex => {
         const matchesSearch = ex.name.toLowerCase().includes(search.toLowerCase());
-        const matchesFilter = filter === "All" || ex.muscleGroup === filter;
+        const matchesFilter = filter === "All" || ex.muscleGroups.includes(filter);
         return matchesSearch && matchesFilter;
     });
 
@@ -52,10 +60,10 @@ export default function ExercisesPage() {
                 <Link href="/" className="text-gray-400 hover:text-white flex items-center gap-2">
                     <ArrowLeft size={20} /> Dashboard
                 </Link>
-                <h1 className="text-3xl font-bold text-blue-500">Exercise Library</h1>
+                <h1 className="text-3xl font-bold text-primary">Exercise Library</h1>
                 <button
                     onClick={() => setShowForm(!showForm)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                    className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg flex items-center gap-2"
                 >
                     <Plus size={20} /> Add Exercise
                 </button>
@@ -80,14 +88,54 @@ export default function ExercisesPage() {
                                 <label className="block text-sm text-gray-400 mb-1">Muscle Group</label>
                                 <select
                                     className="w-full bg-gray-900 border border-gray-700 rounded p-2"
-                                    value={newExercise.muscleGroup}
-                                    onChange={e => setNewExercise({ ...newExercise, muscleGroup: e.target.value })}
+                                    value={newExercise.muscleGroups[0]}
+                                    onChange={e => setNewExercise({ ...newExercise, muscleGroups: [e.target.value] })}
                                 >
                                     {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
                                 </select>
                             </div>
-                        </div>
-                        <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded">
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Difficulty</label>
+                                <select
+                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2"
+                                    value={newExercise.difficulty}
+                                    onChange={e => setNewExercise({ ...newExercise, difficulty: e.target.value as "BEGINNER" | "INTERMEDIATE" | "ADVANCED" })}
+                                >
+                                    <option value="BEGINNER">Beginner</option>
+                                    <option value="INTERMEDIATE">Intermediate</option>
+                                    <option value="ADVANCED">Advanced</option>
+                                </select>
+                            </div>
+                         </div>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                 <label className="block text-sm text-gray-400 mb-1">Equipment</label>
+                                 <input
+                                     type="text"
+                                     className="w-full bg-gray-900 border border-gray-700 rounded p-2"
+                                     value={newExercise.equipment}
+                                     onChange={e => setNewExercise({ ...newExercise, equipment: e.target.value })}
+                                 />
+                             </div>
+                             <div>
+                                 <label className="block text-sm text-gray-400 mb-1">Video URL</label>
+                                 <input
+                                     type="text"
+                                     className="w-full bg-gray-900 border border-gray-700 rounded p-2"
+                                     value={videoUrl}
+                                     onChange={e => setVideoUrl(e.target.value)}
+                                 />
+                             </div>
+                         </div>
+                         <div>
+                             <label className="block text-sm text-gray-400 mb-1">Description</label>
+                             <textarea
+                                 className="w-full bg-gray-900 border border-gray-700 rounded p-2"
+                                 value={newExercise.description}
+                                 onChange={e => setNewExercise({ ...newExercise, description: e.target.value })}
+                             />
+                         </div>
+                         <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded">
                             Save Exercise
                         </button>
                     </form>
@@ -120,7 +168,7 @@ export default function ExercisesPage() {
                         </div>
                         <div>
                             <h3 className="font-bold">{ex.name}</h3>
-                            <p className="text-sm text-gray-400">{ex.muscleGroup} • {ex.category}</p>
+                            <p className="text-sm text-gray-400">{ex.muscleGroups.join(', ')} • {ex.category}</p>
                         </div>
                     </div>
                 ))}

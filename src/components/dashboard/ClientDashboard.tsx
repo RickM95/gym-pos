@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { User } from "@/lib/services/authService";
 import { clientService, Client } from "@/lib/services/clientService";
-import { subscriptionService, SubscriptionWithPlan } from "@/lib/services/subscriptionService";
+import { subscriptionService, Subscription } from "@/lib/services/subscriptionService";
 import { workoutService, WorkoutExercise } from "@/lib/services/workoutService";
 import { sessionService, Session } from "@/lib/services/sessionService";
 import { getDB } from "@/lib/db";
@@ -19,13 +19,13 @@ interface AssignedWorkoutDisplay {
     workoutId: string;
     workoutName: string;
     exercises: WorkoutExercise[];
-    assignedAt: string;
+    assignedDate: string;
     notes?: string;
 }
 
 export default function ClientDashboard({ user }: ClientDashboardProps) {
     const [client, setClient] = useState<Client | null>(null);
-    const [sub, setSub] = useState<SubscriptionWithPlan | null>(null);
+    const [sub, setSub] = useState<Subscription | null>(null);
     const [checkins, setCheckins] = useState<any[]>([]);
     const [programs, setPrograms] = useState<AssignedWorkoutDisplay[]>([]);
     const [history, setHistory] = useState<Session[]>([]);
@@ -57,7 +57,8 @@ export default function ClientDashboard({ user }: ClientDashboardProps) {
                     updatedAt: new Date().toISOString(),
                     synced: 0,
                     status: 'active',
-                    joinedDate: new Date().toISOString()
+                    joinedDate: new Date().toISOString(),
+                    locationId: 'main-gym'
                 };
                 const db = await getDB();
                 await db.add('clients', demoClient);
@@ -114,7 +115,7 @@ export default function ClientDashboard({ user }: ClientDashboardProps) {
                             {sub ? <span className="text-green-400 text-sm font-bold">{sub.planName}</span> : <span className="text-yellow-400 text-sm">No Plan</span>}
                         </div>
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/50 border border-blue-400/30">
-                            <Dumbbell size={14} className="text-blue-400" />
+                            <Dumbbell size={14} className="text-primary" />
                             <span className="text-blue-100 text-sm">{history.length} Workouts</span>
                         </div>
                     </div>
@@ -151,7 +152,7 @@ export default function ClientDashboard({ user }: ClientDashboardProps) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
                             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-200">
-                                <Clock className="text-blue-400" size={20} /> Recent Check-ins
+                                <Clock className="text-primary" size={20} /> Recent Check-ins
                             </h3>
                             <div className="space-y-3">
                                 {checkins.length > 0 ? checkins.map((c, i) => (
@@ -194,10 +195,10 @@ export default function ClientDashboard({ user }: ClientDashboardProps) {
                             <div key={p.id} className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition group">
                                 <div className="flex justify-between items-start mb-4">
                                     <div>
-                                        <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition">{p.workoutName}</h3>
-                                        <p className="text-sm text-gray-400">Assigned: {new Date(p.assignedAt).toLocaleDateString()}</p>
+                                        <h3 className="text-xl font-bold text-white group-hover:text-primary transition">{p.workoutName}</h3>
+                                         <p className="text-sm text-gray-400">Assigned: {new Date(p.assignedDate).toLocaleDateString()}</p>
                                     </div>
-                                    <button className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-bold transition">
+                                    <button className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-bold transition">
                                         <PlayCircle size={18} /> Start
                                     </button>
                                 </div>
@@ -211,7 +212,7 @@ export default function ClientDashboard({ user }: ClientDashboardProps) {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {p.exercises.map((ex, i) => (
                                         <div key={i} className="bg-gray-900/50 p-3 rounded flex items-center justify-between">
-                                            <span className="font-medium text-gray-300">{ex.name}</span>
+                                             <span className="font-medium text-gray-300">Exercise {ex.exerciseId}</span>
                                             <span className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400">{ex.sets} x {ex.reps}</span>
                                         </div>
                                     ))}
@@ -242,7 +243,7 @@ export default function ClientDashboard({ user }: ClientDashboardProps) {
 
                                 <div className="flex items-center gap-4">
                                     <div className="text-right">
-                                        <div className="text-2xl font-bold text-blue-400">{h.logs.length}</div>
+                                        <div className="text-2xl font-bold text-primary">{h.logs.length}</div>
                                         <div className="text-xs text-gray-500 uppercase font-bold">Exercises</div>
                                     </div>
                                     <button className="text-gray-400 hover:text-white p-2">

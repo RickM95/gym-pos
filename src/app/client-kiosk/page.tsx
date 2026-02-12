@@ -39,8 +39,8 @@ export default function ClientKioskPage() {
         setLoading(true);
         try {
             // Use special client authentication method
-            const success = await login(pinValue); // This will be combined clientId:pin
-            if (!success) {
+            const result = await login(clientId, pinValue); // This will be combined clientId:pin
+            if (!result.success) {
                 setError(true);
                 setPin("");
             }

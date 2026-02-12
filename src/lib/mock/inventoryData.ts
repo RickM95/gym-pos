@@ -77,7 +77,8 @@ async function initializeSuppliers() {
 
     for (const supplier of suppliers) {
         try {
-            await inventoryService.createSupplier(supplier);
+            // await inventoryService.createSupplier(supplier);
+            // Supplier creation not implemented yet
         } catch (error) {
             // Supplier might already exist
         }
@@ -104,7 +105,8 @@ async function initializeProducts() {
             unit: 'units',
             expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
             batchNumber: 'WP2024-001',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
         {
             name: 'Creatine Monohydrate',
@@ -120,7 +122,8 @@ async function initializeProducts() {
             unit: 'units',
             expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
             batchNumber: 'CR2024-001',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
         {
             name: 'Pre-Workout Extreme',
@@ -136,7 +139,8 @@ async function initializeProducts() {
             unit: 'units',
             expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
             batchNumber: 'PW2024-001',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
 
         // Beverages
@@ -154,7 +158,8 @@ async function initializeProducts() {
             unit: 'bottles',
             expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
             batchNumber: 'ED2024-001',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
         {
             name: 'Mineral Water 1L',
@@ -170,7 +175,8 @@ async function initializeProducts() {
             unit: 'bottles',
             expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
             batchNumber: 'MW2024-001',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
         {
             name: 'Sports Drink 750ml',
@@ -186,7 +192,8 @@ async function initializeProducts() {
             unit: 'bottles',
             expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
             batchNumber: 'SD2024-001',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
 
         // Accessories
@@ -202,7 +209,8 @@ async function initializeProducts() {
             minStockLevel: 2,
             maxStockLevel: 10,
             unit: 'units',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
         {
             name: 'Workout Gloves Pro',
@@ -216,7 +224,8 @@ async function initializeProducts() {
             minStockLevel: 5,
             maxStockLevel: 25,
             unit: 'pairs',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
         {
             name: 'Shaker Bottle 28oz',
@@ -230,7 +239,8 @@ async function initializeProducts() {
             minStockLevel: 10,
             maxStockLevel: 50,
             unit: 'units',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
 
         // Equipment
@@ -246,7 +256,8 @@ async function initializeProducts() {
             minStockLevel: 3,
             maxStockLevel: 15,
             unit: 'sets',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
         {
             name: 'Jump Rope Pro',
@@ -260,7 +271,8 @@ async function initializeProducts() {
             minStockLevel: 4,
             maxStockLevel: 20,
             unit: 'units',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
 
         // Apparel
@@ -276,7 +288,8 @@ async function initializeProducts() {
             minStockLevel: 10,
             maxStockLevel: 50,
             unit: 'units',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
         {
             name: 'Gym Tank Top',
@@ -290,7 +303,8 @@ async function initializeProducts() {
             minStockLevel: 8,
             maxStockLevel: 40,
             unit: 'units',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
 
         // Recovery
@@ -308,7 +322,8 @@ async function initializeProducts() {
             unit: 'bars',
             expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
             batchNumber: 'PB2024-001',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         },
         {
             name: 'BCAA Recovery Drink',
@@ -324,7 +339,8 @@ async function initializeProducts() {
             unit: 'servings',
             expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
             batchNumber: 'BC2024-001',
-            isActive: true
+            isActive: true,
+            locationId: 'main-gym'
         }
     ];
 
@@ -348,7 +364,8 @@ async function initializeFinancialData() {
             vendor: 'Property Management',
             invoiceNumber: 'RENT-2024-01',
             paymentMethod: 'TRANSFER' as const,
-            createdBy: 'system'
+            createdBy: 'system',
+            locationId: 'main-gym'
         },
         {
             description: 'Electricity Bill',
@@ -358,7 +375,8 @@ async function initializeFinancialData() {
             vendor: 'ENEE',
             invoiceNumber: 'ELEC-2024-01',
             paymentMethod: 'TRANSFER' as const,
-            createdBy: 'system'
+            createdBy: 'system',
+            locationId: 'main-gym'
         },
         {
             description: 'Water Bill',
@@ -368,7 +386,8 @@ async function initializeFinancialData() {
             vendor: 'SANAA',
             invoiceNumber: 'WATER-2024-01',
             paymentMethod: 'TRANSFER' as const,
-            createdBy: 'system'
+            createdBy: 'system',
+            locationId: 'main-gym'
         },
         {
             description: 'Staff Salaries',
@@ -376,7 +395,8 @@ async function initializeFinancialData() {
             amount: 45000,
             date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
             paymentMethod: 'TRANSFER' as const,
-            createdBy: 'system'
+            createdBy: 'system',
+            locationId: 'main-gym'
         },
         {
             description: 'Marketing Campaign',
@@ -386,7 +406,8 @@ async function initializeFinancialData() {
             vendor: 'Digital Marketing Agency',
             invoiceNumber: 'MKT-2024-001',
             paymentMethod: 'TRANSFER' as const,
-            createdBy: 'system'
+            createdBy: 'system',
+            locationId: 'main-gym'
         },
         {
             description: 'Equipment Maintenance',
@@ -396,7 +417,8 @@ async function initializeFinancialData() {
             vendor: 'Fitness Tech Services',
             invoiceNumber: 'MAIN-2024-001',
             paymentMethod: 'CASH' as const,
-            createdBy: 'system'
+            createdBy: 'system',
+            locationId: 'main-gym'
         },
         {
             description: 'Office Supplies',
@@ -406,7 +428,8 @@ async function initializeFinancialData() {
             vendor: 'Office Depot',
             invoiceNumber: 'SUP-2024-001',
             paymentMethod: 'CARD' as const,
-            createdBy: 'system'
+            createdBy: 'system',
+            locationId: 'main-gym'
         }
     ];
 
@@ -436,6 +459,7 @@ async function initializeFinancialData() {
             paymentStatus: 'PAID' as const,
             saleDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
             staffId,
+            locationId: 'main-gym',
             notes: 'Member purchase'
         },
         {
@@ -451,6 +475,7 @@ async function initializeFinancialData() {
             paymentStatus: 'PAID' as const,
             saleDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
             staffId,
+            locationId: 'main-gym',
             notes: 'Walk-in customer'
         },
         {
@@ -466,6 +491,7 @@ async function initializeFinancialData() {
             paymentStatus: 'PAID' as const,
             saleDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
             staffId,
+            locationId: 'main-gym',
             notes: 'Premium member'
         }
     ];

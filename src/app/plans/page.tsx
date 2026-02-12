@@ -53,10 +53,10 @@ export default function PlansPage() {
                             <Link href="/" className="text-gray-400 hover:text-white flex items-center gap-2">
                                 <ArrowLeft size={20} /> Dashboard
                             </Link>
-                            <h1 className="text-3xl font-bold text-blue-500">Membership Plans</h1>
+                            <h1 className="text-3xl font-bold text-primary">Membership Plans</h1>
                             <button
                                 onClick={() => setShowForm(!showForm)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                                className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg flex items-center gap-2"
                             >
                                 <Plus size={20} /> New Plan
                             </button>
@@ -114,7 +114,7 @@ export default function PlansPage() {
                                             <p className="text-gray-400 mt-2">{plan.durationDays} Days Access</p>
                                         </div>
                                         <div className="mt-6 flex justify-between items-end">
-                                            <span className="text-3xl font-bold text-blue-400">${plan.price}</span>
+                                            <span className="text-3xl font-bold text-primary">${plan.price}</span>
                                             <span className="text-xs text-gray-500 uppercase tracking-wider">ID: {plan.id.substring(0, 4)}</span>
                                         </div>
                                     </div>

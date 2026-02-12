@@ -9,7 +9,8 @@ import LockScreen from "./LockScreen";
 
 interface AuthContextType {
     user: User | null;
-    login: (pin: string) => Promise<{ success: boolean; error?: string }>;
+    login: (username: string, pin: string) => Promise<{ success: boolean; error?: string }>;
+    loginWithPassword: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => void;
     isLoading: boolean;
     unlock: (pin: string) => Promise<{ success: boolean; error?: string }>;
@@ -21,6 +22,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
     user: null,
     login: async () => ({ success: false }),
+    loginWithPassword: async () => ({ success: false }),
     logout: () => { },
     isLoading: true,
     unlock: async () => ({ success: false }),
@@ -68,7 +70,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     }, []);
 
     useEffect(() => {
-        if (!isLoading && !user && pathname !== '/login') {
+        if (!isLoading && !user && pathname !== '/login' && pathname !== '/setup') {
             router.push('/login');
         }
     }, [user, isLoading, pathname, router]);
@@ -102,11 +104,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         };
     }, [user, isLocked]);
 
-    const login = async (pin: string) => {
+    const login = async (username: string, pin: string) => {
         setAuthError(null);
         try {
-            console.log('[AuthProvider] Attempting login with PIN...');
-            const u = await authService.login(pin);
+            console.log(`[AuthProvider] Attempting login for ${username}...`);
+            const u = await authService.login(username, pin);
             if (u) {
                 console.log('[AuthProvider] Login successful:', u.name, u.role);
                 setUser(u);
@@ -114,11 +116,33 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
                 router.push('/');
                 return { success: true };
             }
-            setAuthError('Invalid PIN');
-            return { success: false, error: 'Invalid PIN' };
+            setAuthError('Invalid Username or PIN');
+            return { success: false, error: 'Invalid Username or PIN' };
         } catch (error) {
             const msg = error instanceof Error ? error.message : 'Login failed';
             console.error('[AuthProvider] Login error:', msg);
+            setAuthError(msg);
+            return { success: false, error: msg };
+        }
+    };
+
+    const loginWithPassword = async (username: string, password: string) => {
+        setAuthError(null);
+        try {
+            console.log(`[AuthProvider] Attempting password login for ${username}...`);
+            const u = await authService.loginWithPassword(username, password);
+            if (u) {
+                console.log('[AuthProvider] Password login successful:', u.name, u.role);
+                setUser(u);
+                setIsLocked(false);
+                router.push('/');
+                return { success: true };
+            }
+            setAuthError('Invalid Username or Password');
+            return { success: false, error: 'Invalid Username or Password' };
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Login failed';
+            console.error('[AuthProvider] Password login error:', msg);
             setAuthError(msg);
             return { success: false, error: msg };
         }
@@ -133,10 +157,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     };
 
     const unlock = async (pin: string) => {
+        if (!user) return { success: false };
         setAuthError(null);
         try {
-            const unlockingUser = await authService.login(pin);
-            if (unlockingUser && unlockingUser.id === user?.id) {
+            const unlockingUser = await authService.login(user.username, pin);
+            if (unlockingUser && unlockingUser.id === user.id) {
                 setIsLocked(false);
                 return { success: true };
             }
@@ -164,12 +189,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         );
     }
 
-    if (!user && pathname !== '/login') {
+    if (!user && pathname !== '/login' && pathname !== '/setup') {
         return null;
     }
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, isLoading, unlock, setIsLocked, authError, clearAuthError }}>
+        <AuthContext.Provider value={{ user, login, loginWithPassword, logout, isLoading, unlock, setIsLocked, authError, clearAuthError }}>
             {isLocked && user && (
                 <LockScreen user={user} onUnlock={unlock} onSignOut={logout} />
             )}

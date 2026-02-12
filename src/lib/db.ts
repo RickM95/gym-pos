@@ -1,7 +1,7 @@
 import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'gym-platform-db';
-const DB_VERSION = 53;
+const DB_VERSION = 56; // v56: Ensure platform_admins and feature_config exist
 
 
 export type BrandingConfig = DBSchemaV1['branding_config']['value'];
@@ -361,6 +361,21 @@ export type DBSchemaV1 = {
             ownerId?: string;
         };
         indexes: { 'by-status': string };
+    },
+    platform_admins: {
+        key: string;
+        value: {
+            id: string;
+            username: string;
+            password: string;
+            pin?: string;
+            email: string;
+            name: string;
+            photoUrl?: string;
+            isActive: boolean;
+            createdAt: string;
+            updatedAt: string;
+        };
     },
     branding_config: {
         key: string;
@@ -820,7 +835,6 @@ export type DBSchemaV1 = {
         };
         indexes: { 'by-client': string };
     },
-    // Add other stores as needed
 };
 
 let dbPromise: Promise<IDBPDatabase<DBSchemaV1>>;
@@ -1076,6 +1090,34 @@ export const initDB = () => {
                             }
                         }
                     });
+                }
+
+                if (oldVersion < 54) {
+                    // Add platform_admins store for platform-level administration
+                    if (!db.objectStoreNames.contains('platform_admins')) {
+                        db.createObjectStore('platform_admins', { keyPath: 'id' });
+                    }
+                }
+
+                if (oldVersion < 55) {
+                    // Add by-active-plan compound index to subscriptions if missing
+                    if (db.objectStoreNames.contains('subscriptions')) {
+                        const subStore = tx.objectStore('subscriptions');
+                        if (!subStore.indexNames.contains('by-active-plan')) {
+                            subStore.createIndex('by-active-plan', ['isActive', 'planId']);
+                        }
+                    }
+                }
+
+                if (oldVersion < 56) {
+                    // Ensure platform_admins exists (for users who skipped v54 logic)
+                    if (!db.objectStoreNames.contains('platform_admins')) {
+                        db.createObjectStore('platform_admins', { keyPath: 'id' });
+                    }
+                    // Ensure feature_config exists
+                    if (!db.objectStoreNames.contains('feature_config')) {
+                        db.createObjectStore('feature_config', { keyPath: 'id' });
+                    }
                 }
             },
         });

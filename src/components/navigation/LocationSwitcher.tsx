@@ -9,7 +9,7 @@ import { FeatureKey } from '@/lib/constants/features';
 export function LocationSwitcher() {
     const { features } = useFeatures();
     const [locations, setLocations] = useState<Location[]>([]);
-    const [currentLocation, setCurrentLocation] = useState<string>('default');
+    const [currentLocation, setCurrentLocation] = useState<string>('main-gym');
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
@@ -22,7 +22,7 @@ export function LocationSwitcher() {
         if (data.length === 0) {
             // Seed default location
             const defaultLoc = {
-                id: 'default',
+                id: 'main-gym',
                 name: 'Main Branch',
                 isActive: true,
                 updatedAt: new Date().toISOString(),

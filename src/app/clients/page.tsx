@@ -47,10 +47,10 @@ function ClientsPageContent() {
                         <div className="flex justify-between items-center mb-8">
                             <div>
                                 <Link href="/" className="text-gray-400 hover:text-white mb-2 block">← Back to Dashboard</Link>
-                                <h1 className="text-3xl font-bold text-blue-500">Clients</h1>
+                                <h1 className="text-3xl font-bold text-primary">Clients</h1>
                             </div>
                             <Link href="/clients/add">
-                                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                                <button className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                                     <Plus size={20} />
                                     Add Client
                                 </button>
@@ -64,7 +64,7 @@ function ClientsPageContent() {
                             <input
                                 type="text"
                                 placeholder="Search by name, email, or phone number..."
-                                className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500"
+                                className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />

@@ -18,7 +18,7 @@ function ScanPageContent() {
 
     const handleScan = async (clientId: string) => {
         try {
-            const checkinResult = await checkinService.checkIn(clientId);
+             const checkinResult = await checkinService.processCheckin(clientId);
             setResult(checkinResult);
             setScanning(false);
 
